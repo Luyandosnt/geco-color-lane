@@ -3,16 +3,20 @@ import Phaser from 'phaser';
 export const TerrainAssets = {
   corrupted: 'terrain-corrupted',
   restored: 'terrain-restored',
-  plane: 'plane'
+  plane: 'plane',
+  fuel: 'fuel-cell'
 };
 
 export const TerrainAssetPaths = {
   corrupted: '/assets/environment/savannah-corrupted.jpg',
   restored: '/assets/environment/savannah-restored.jpg',
-  plane: '/assets/environment/plane.png'
+  plane: '/assets/environment/plane.png',
+  fuel: '/assets/environment/fuel-cell.png'
 };
 
 export const AIRCRAFT_Y = 612;
+export const PICKUP_Y = AIRCRAFT_Y;
+export const PICKUP_EFFECT_Y = AIRCRAFT_Y - 38;
 
 type TerrainChunk = {
   y: number;
@@ -24,7 +28,7 @@ type TerrainChunk = {
 export class TerrainRestorationManager {
   private scene: Phaser.Scene;
   private chunks: TerrainChunk[] = [];
-  private chunkHeight = 392;
+  private chunkHeight = 404;
   private chunkWidth = 390;
   private revealBandHeight = 155;
   private planeY = AIRCRAFT_Y;
@@ -39,10 +43,11 @@ export class TerrainRestorationManager {
     scene.load.image(TerrainAssets.corrupted, TerrainAssetPaths.corrupted);
     scene.load.image(TerrainAssets.restored, TerrainAssetPaths.restored);
     scene.load.image(TerrainAssets.plane, TerrainAssetPaths.plane);
+    scene.load.image(TerrainAssets.fuel, TerrainAssetPaths.fuel);
   }
 
   create() {
-    for (let i = 0; i < 4; i++) this.chunks.push(this.createChunk((i - 1) * (this.chunkHeight - 2)));
+    for (let i = 0; i < 4; i++) this.chunks.push(this.createChunk((i - 1) * (this.chunkHeight - 18)));
     this.debug = this.scene.add.text(12, 84, '', {
       fontFamily: 'Arial',
       fontSize: '11px',
@@ -97,7 +102,7 @@ export class TerrainRestorationManager {
 
   private recycleChunk(chunk: TerrainChunk) {
     const topY = Math.min(...this.chunks.map(c => c.y));
-    chunk.y = topY - (this.chunkHeight - 2);
+    chunk.y = topY - (this.chunkHeight - 18);
     chunk.restoredCoverage = 0;
     chunk.corrupted.setCrop();
   }
