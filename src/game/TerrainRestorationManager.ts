@@ -24,7 +24,8 @@ type TerrainChunk = {
   y: number;
   restoredCoverage: number;
   stamps: number;
-  texture: Phaser.Textures.CanvasTexture;
+  corruptedTexture: Phaser.Textures.CanvasTexture;
+  restoredTexture: Phaser.Textures.CanvasTexture;
   corrupted: Phaser.GameObjects.Image;
   restored: Phaser.GameObjects.Image;
 };
@@ -43,7 +44,9 @@ export class TerrainRestorationManager {
   private particleCursor = 0;
   private chunkHeight = 390;
   private chunkWidth = 390;
-  private chunkStep = 388;
+  private chunkOverlap = 4;
+  private chunkStep = this.chunkHeight - this.chunkOverlap;
+  private sourceInset = 3;
   private planeY = AIRCRAFT_Y;
   private frontierOffset = 46;
   private time = 0;
@@ -91,8 +94,7 @@ export class TerrainRestorationManager {
     this.chunks.forEach(chunk => {
       chunk.y += dy;
       if (chunk.y >= 844) this.recycleChunk(chunk);
-      chunk.corrupted.y = chunk.y;
-      chunk.restored.y = chunk.y;
+      this.positionChunk(chunk);
       this.reveal(chunk, activeLaneX, revealY);
     });
 
@@ -106,18 +108,25 @@ export class TerrainRestorationManager {
       this.debug.setText(
         'scroll ' + Math.round(scrollSpeed) + '\n' +
         'chunks ' + this.chunks.length + '\n' +
-        'restore ' + Math.round(this.coverageTotal) + '%'
+        'restore ' + Math.round(this.coverageTotal) + '%\n' +
+        'height ' + this.chunkHeight + ' overlap ' + this.chunkOverlap + '\n' +
+        this.chunks.map(c => Math.round(c.y)).join(', ')
       );
     }
   }
 
   private createChunk(index: number, y: number): TerrainChunk {
-    const restored = this.scene.add.image(195, y, TerrainAssets.restored).setOrigin(.5, 0).setDisplaySize(this.chunkWidth, this.chunkHeight).setDepth(-30);
-    const key = 'terrain-corrupted-canvas-' + index;
-    const texture = this.scene.textures.createCanvas(key, this.chunkWidth, this.chunkHeight) as Phaser.Textures.CanvasTexture;
-    this.paintCorrupted(texture);
-    const corrupted = this.scene.add.image(195, y, key).setOrigin(.5, 0).setDepth(-29);
-    return { y, restoredCoverage: 0, stamps: 0, texture, corrupted, restored };
+    const restoredKey = 'terrain-restored-canvas-' + index;
+    const corruptedKey = 'terrain-corrupted-canvas-' + index;
+    const restoredTexture = this.createOrResetCanvas(restoredKey);
+    const corruptedTexture = this.createOrResetCanvas(corruptedKey);
+    this.paintTile(restoredTexture, TerrainAssets.restored);
+    this.paintTile(corruptedTexture, TerrainAssets.corrupted);
+    const restored = this.scene.add.image(195, y, restoredKey).setOrigin(.5, 0).setDepth(-30);
+    const corrupted = this.scene.add.image(195, y, corruptedKey).setOrigin(.5, 0).setDepth(-29);
+    const chunk = { y, restoredCoverage: 0, stamps: 0, corruptedTexture, restoredTexture, corrupted, restored };
+    this.positionChunk(chunk);
+    return chunk;
   }
 
   private createParticle() {
@@ -133,7 +142,7 @@ export class TerrainRestorationManager {
     const localY = revealY - chunk.y;
     if (localY < -70 || localY > this.chunkHeight + 80) return;
 
-    const ctx = chunk.texture.getContext();
+    const ctx = chunk.corruptedTexture.getContext();
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
     this.eraseSoftEllipse(ctx, x, localY, 92, 48, .9);
@@ -141,7 +150,7 @@ export class TerrainRestorationManager {
     this.eraseSoftEllipse(ctx, x + 43 + Math.cos(this.time / 260) * 10, localY + 18, 64, 32, .58);
     this.eraseSoftEllipse(ctx, x + Math.sin(this.time / 190) * 24, localY + 42, 114, 42, .44);
     ctx.restore();
-    chunk.texture.refresh();
+    chunk.corruptedTexture.refresh();
 
     chunk.stamps++;
     chunk.restoredCoverage = Math.min(100, chunk.stamps * 2.1);
@@ -205,15 +214,29 @@ export class TerrainRestorationManager {
     chunk.y = topY - this.chunkStep;
     chunk.restoredCoverage = 0;
     chunk.stamps = 0;
-    this.paintCorrupted(chunk.texture);
+    this.paintTile(chunk.restoredTexture, TerrainAssets.restored);
+    this.paintTile(chunk.corruptedTexture, TerrainAssets.corrupted);
+    this.positionChunk(chunk);
   }
 
-  private paintCorrupted(texture: Phaser.Textures.CanvasTexture) {
+  private positionChunk(chunk: TerrainChunk) {
+    const y = Math.round(chunk.y);
+    chunk.restored.setPosition(195, y);
+    chunk.corrupted.setPosition(195, y);
+  }
+
+  private createOrResetCanvas(key: string) {
+    if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
+    return this.scene.textures.createCanvas(key, this.chunkWidth, this.chunkHeight) as Phaser.Textures.CanvasTexture;
+  }
+
+  private paintTile(texture: Phaser.Textures.CanvasTexture, assetKey: string) {
     const ctx = texture.getContext();
-    const source = this.scene.textures.get(TerrainAssets.corrupted).getSourceImage() as CanvasImageSource;
+    const source = this.scene.textures.get(assetKey).getSourceImage() as HTMLImageElement;
+    const inset = this.sourceInset;
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, this.chunkWidth, this.chunkHeight);
-    ctx.drawImage(source, 0, 0, this.chunkWidth, this.chunkHeight);
+    ctx.drawImage(source, inset, inset, source.width - inset * 2, source.height - inset * 2, 0, 0, this.chunkWidth, this.chunkHeight);
     texture.refresh();
   }
 }
