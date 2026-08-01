@@ -1,6 +1,6 @@
 import { Core } from './Core';
 
-const TRACKS = ['/audio/music/1.mp3', '/audio/music/2.mp3'];
+const TRACKS = ['/audio/music/2.mp3', '/audio/music/1.mp3'];
 
 export const Audio = {
   ctx: null as AudioContext | null,

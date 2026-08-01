@@ -3,6 +3,7 @@ import { Core, SkinId } from '../core/Core';
 import { RunSystem } from '../core/RunSystem';
 import { Audio } from '../core/Audio';
 import { Online } from '../core/Online';
+import { BackgroundEvolutionManager } from './BackgroundEvolutionManager';
 
 type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
@@ -11,25 +12,34 @@ const G = 0xfacc15;
 
 export class ColorLane extends Phaser.Scene {
   lane = 1; speed = 220; playing = false; paused = false; spawnDelay = 1180;
+  visualTime = 0; nextOrbitSpark = 0;
   run = new RunSystem(); pattern: number[] = []; pi = 0;
   menu: Phaser.GameObjects.GameObject[] = []; inputs: HTMLInputElement[] = [];
   player!: Phaser.GameObjects.Rectangle; gates!: Phaser.GameObjects.Group;
   score!: Phaser.GameObjects.Text; streak!: Phaser.GameObjects.Text; lives!: Phaser.GameObjects.Text; level!: Phaser.GameObjects.Text;
   title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text;
   version!: Phaser.GameObjects.Text;
+  background!: BackgroundEvolutionManager;
+  aura!: Phaser.GameObjects.Arc; rays: Phaser.GameObjects.Rectangle[] = []; dangerEdges: Phaser.GameObjects.Rectangle[] = [];
   overlay!: Phaser.GameObjects.Rectangle; danger!: Phaser.GameObjects.Rectangle; lanes = [65, 195, 325];
 
   constructor() { super('ColorLane'); }
 
   create() {
-    this.add.rectangle(195, 422, 390, 844, 0x07101e);
-    for (let i = 0; i < 28; i++) this.add.circle(Phaser.Math.Between(8, 382), Phaser.Math.Between(90, 790), Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(.04, .14));
+    this.background = new BackgroundEvolutionManager(this, this.lanes, C);
+    this.background.create();
     this.lanes.forEach((x, i) => {
       this.add.rectangle(x, 430, 126, 720, C[i], .045);
       this.add.rectangle(x, 430, 2, 720, 0xffffff, .09);
       this.add.text(x, 92, N[i], { fontFamily: 'Arial', fontSize: '12px', color: '#94a3b8', fontStyle: 'bold' }).setOrigin(.5);
     });
     this.danger = this.add.rectangle(195, 422, 390, 844, 0xf43f5e, 0).setDepth(4);
+    this.dangerEdges = [
+      this.add.rectangle(195, 4, 390, 8, 0xf43f5e, 0),
+      this.add.rectangle(195, 840, 390, 8, 0xf43f5e, 0),
+      this.add.rectangle(4, 422, 8, 844, 0xf43f5e, 0),
+      this.add.rectangle(386, 422, 8, 844, 0xf43f5e, 0)
+    ].map(x => x.setDepth(29).setBlendMode(Phaser.BlendModes.ADD));
     this.add.rectangle(195, 38, 370, 58, 0x020617, .96).setStrokeStyle(1, 0x334155, .9).setDepth(30);
     this.add.text(18, 18, 'GECO', { fontFamily: 'Arial', fontSize: '13px', color: '#94a3b8', fontStyle: 'bold' }).setDepth(31);
     this.score = this.add.text(370, 13, '', { fontFamily: 'Arial', fontSize: '31px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(31);
@@ -40,6 +50,8 @@ export class ColorLane extends Phaser.Scene {
     this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); if (this.playing) this.togglePause(); });
     this.status = this.add.text(195, 150, '', { fontFamily: 'Arial', fontSize: '20px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 340 } }).setOrigin(.5).setDepth(70);
     this.player = this.add.rectangle(this.lanes[1], 720, 64, 64, C[1]).setStrokeStyle(4, 0xffffff, .95).setDepth(10);
+    this.aura = this.add.circle(this.player.x, this.player.y, 46, C[1], 0).setStrokeStyle(3, C[1], 0).setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
+    this.rays = [-18, 0, 18].map((off, i) => this.add.rectangle(this.player.x + off, this.player.y + 24, 5, 70 + i * 10, C[1], 0).setAngle(off * .35).setDepth(8).setBlendMode(Phaser.BlendModes.ADD));
     this.gates = this.add.group();
     this.overlay = this.add.rectangle(195, 422, 390, 844, 0x020617, .86).setDepth(45).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
@@ -47,7 +59,7 @@ export class ColorLane extends Phaser.Scene {
     this.version = this.add.text(14, 820, 'v0.1.13 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
-      this.move(Math.max(0, Math.min(2, Math.floor((p.x * (390 / this.scale.displaySize.width)) / 130))));
+      this.move(Math.max(0, Math.min(2, Math.floor(p.worldX / 130))));
     });
     window.addEventListener('blur', () => { if (this.playing) Audio.pauseMusic(); });
     window.addEventListener('focus', () => { if (this.playing && !this.paused) Audio.resumeMusic(); });
@@ -144,21 +156,89 @@ export class ColorLane extends Phaser.Scene {
   }
 
   skin() { const s = Core.data.skin; this.player.setScale(1).setAngle(0); if (s === 'sunset') { this.player.setStrokeStyle(8, 0xf97316, 1); this.player.setAngle(45).setScale(.86); } else if (s === 'neon') { this.player.setStrokeStyle(8, 0x22d3ee, 1); this.tweens.add({ targets: this.player, alpha: .62, yoyo: true, repeat: -1, duration: 420 }); } else this.player.setStrokeStyle(4, 0xffffff, .95); }
-  trail() { const q = this.add.rectangle(this.player.x, this.player.y, 50, 50, C[this.lane], .18).setDepth(5).setAngle(this.player.angle); this.tweens.add({ targets: q, alpha: 0, scale: 1.6, duration: 190, onComplete: () => q.destroy() }); }
-  move(i: number) { if (i === this.lane) return; this.trail(); const from = this.player.x; this.lane = i; this.player.setFillStyle(C[i]); Audio.move(); this.tweens.killTweensOf(this.player); this.tweens.add({ targets: this.player, x: this.lanes[i], duration: 100, ease: 'Back.out' }); const streak = this.add.rectangle(from, 720, 38, 4, C[i], .6).setDepth(6); this.tweens.add({ targets: streak, x: this.lanes[i], alpha: 0, scaleX: 2, duration: 130, onComplete: () => streak.destroy() }); }
+  trail(from: number, to: number, col: number) {
+    const g = this.add.graphics().setDepth(7).setBlendMode(Phaser.BlendModes.ADD);
+    const draw = (width: number, alpha: number, lift: number) => {
+      g.lineStyle(width, col, alpha);
+      g.beginPath();
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10, x = Phaser.Math.Linear(from, to, t), y = 720 - Math.sin(t * Math.PI) * lift;
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.strokePath();
+    };
+    draw(13, .16, 38);
+    draw(5, .55, 30);
+    this.tweens.add({ targets: g, alpha: 0, scaleY: 1.24, duration: 250, ease: 'Sine.easeOut', onComplete: () => g.destroy() });
+  }
+  move(i: number) { if (i === this.lane) return; const from = this.player.x; this.trail(from, this.lanes[i], C[i]); this.lane = i; this.player.setFillStyle(C[i]); Audio.move(); this.tweens.killTweensOf(this.player); this.tweens.add({ targets: this.player, x: this.lanes[i], duration: 100, ease: 'Back.out' }); }
 
   start() { this.clear(); this.time.removeAllEvents(); this.tweens.killTweensOf(this.player); this.gates.clear(true, true); this.run.reset(); this.playing = true; this.paused = false; Audio.startMusic(); this.pattern = []; this.pi = 0; this.lane = 1; this.danger.setAlpha(0); this.shell(false); this.player.setVisible(true).setAlpha(1).setPosition(this.lanes[1], 720).setFillStyle(C[1]); this.skin(); this.hud(); this.pause.setText('Ⅱ PAUSE'); this.flash('GO!', 500); this.cameras.main.fadeIn(220, 0, 0, 0); this.time.delayedCall(500, () => { this.spawn(); this.schedule(); }); }
   hud() { const s = this.run.snapshot(); this.lives.setText('♥'.repeat(s.lives)); this.level.setText('LEVEL ' + s.level); this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : ''); this.score.setText(String(s.score)); }
   schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
   choose() { const l = this.run.level; if (this.pi >= this.pattern.length) { if (l < 3) this.pattern = [Phaser.Math.Between(0, 2)]; else { const a = Phaser.Math.Between(0, 2), b = (a + Phaser.Math.Between(1, 2)) % 3; this.pattern = l < 7 ? [a, b, a] : [a, (a + 1) % 3, (a + 2) % 3]; } this.pi = 0; } return this.pattern[this.pi++]; }
   spawn() { if (this.gates.getLength() >= 3) return; const gold = this.run.score >= 5 && Phaser.Math.Between(1, 13) === 1, l = gold ? Phaser.Math.Between(0, 2) : this.choose(), col = gold ? G : C[l], box = this.add.rectangle(this.lanes[l], -38, gold ? 58 : 92, gold ? 58 : 46, col).setStrokeStyle(gold ? 6 : 4, gold ? G : 0xffffff, .95), lab = this.add.text(this.lanes[l], -38, gold ? '★' : N[l], { fontFamily: 'Arial', fontSize: gold ? '22px' : '12px', color: gold ? '#111827' : '#fff', fontStyle: 'bold' }).setOrigin(.5), g = this.add.container(0, 0, [box, lab]) as Gate; g.lane = l; g.gold = gold; g.setDepth(12).setScale(.7).setAlpha(0); this.tweens.add({ targets: g, scale: 1, alpha: 1, duration: 180, ease: 'Back.out' }); if (gold) this.tweens.add({ targets: box, scale: 1.12, yoyo: true, repeat: -1, duration: 280 }); this.gates.add(g); }
-  update(_: number, d: number) { if (!this.playing || this.paused) return; const l = this.run.level; Audio.setMusicPace(l); this.speed = Math.min(540, 215 + (l - 1) * 28 + this.run.score * 1.2); this.spawnDelay = Math.max(650, 1200 - (l - 1) * 55); for (const o of [...this.gates.getChildren()] as Gate[]) { o.y += this.speed * d / 1000; if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(this.lanes[o.lane!], o.y); if (o.y > 675 && !o.getData('checked')) { o.setData('checked', true); o.gold ? this.gold(o) : o.lane === this.lane ? this.ok(o) : this.miss(o); } if (o.y > 880) o.destroy(); } }
+  visualUpdate(d: number) {
+    this.visualTime += d;
+    this.background.update(this.run.score, this.run.streak, this.run.lives, this.lane, d);
+    const s = this.run.streak, col = C[this.lane], aura = this.playing ? Math.min(.28, Math.max(0, (s - 2) * .045)) : 0;
+    this.aura.setPosition(this.player.x, this.player.y).setFillStyle(col, aura * .22).setStrokeStyle(3 + Math.min(5, s), col, aura);
+    this.aura.setScale(1 + Math.sin(this.visualTime / 180) * .04 + Math.min(.28, s * .015));
+    this.rays.forEach((r, i) => r.setPosition(this.player.x + (i - 1) * 18, this.player.y + 35).setFillStyle(col, s >= 4 && this.playing ? Math.min(.18, .055 + s * .012) : 0).setScale(1, 1 + Math.sin(this.visualTime / 240 + i) * .16));
+    if (this.playing && s >= 2 && this.visualTime > this.nextOrbitSpark) {
+      this.nextOrbitSpark = this.visualTime + (s >= 4 ? 140 : 240);
+      const a = this.visualTime * .006;
+      const q = this.add.circle(this.player.x + Math.cos(a) * 39, this.player.y + Math.sin(a) * 27, s >= 4 ? 3 : 2, s >= 4 ? 0xffffff : col, .65).setDepth(23).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: q, x: this.player.x + Math.cos(a + .8) * 48, y: this.player.y + Math.sin(a + .8) * 33, alpha: 0, scale: .25, duration: 260, onComplete: () => q.destroy() });
+    }
+    const dangerAlpha = this.playing && this.run.lives === 1 ? .09 + Math.sin(this.visualTime / 1000 * Math.PI * 2) * .035 : 0;
+    this.dangerEdges.forEach(e => e.setAlpha(Math.max(0, dangerAlpha)));
+    if (this.playing && this.run.lives === 1) this.player.setStrokeStyle(7, 0xfb7185, .95);
+  }
+  update(_: number, d: number) { this.visualUpdate(d); if (!this.playing || this.paused) return; const l = this.run.level; Audio.setMusicPace(l); this.speed = Math.min(540, 215 + (l - 1) * 28 + this.run.score * 1.2); this.spawnDelay = Math.max(650, 1200 - (l - 1) * 55); for (const o of [...this.gates.getChildren()] as Gate[]) { o.y += this.speed * d / 1000; if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(this.lanes[o.lane!], o.y); if (o.y > 675 && !o.getData('checked')) { o.setData('checked', true); o.gold ? this.gold(o) : o.lane === this.lane ? this.ok(o) : this.miss(o); } if (o.y > 880) o.destroy(); } }
 
   spark(x: number, y: number) { const q = this.add.circle(x + Phaser.Math.Between(-22, 22), y + Phaser.Math.Between(-12, 12), Phaser.Math.Between(1, 3), G, .8).setDepth(8); this.tweens.add({ targets: q, y: y + 30, alpha: 0, scale: 0, duration: 240, onComplete: () => q.destroy() }); }
-  burst(x: number, col: number, n = 12) { const ring = this.add.circle(x, 700, 18, col, .08).setStrokeStyle(4, col, .9).setDepth(20); this.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 260, onComplete: () => ring.destroy() }); for (let i = 0; i < n; i++) { const q = this.add.circle(x, 700, Phaser.Math.Between(2, 6), col, 1).setDepth(21), a = Phaser.Math.FloatBetween(-Math.PI, 0), r = Phaser.Math.Between(35, 90); this.tweens.add({ targets: q, x: x + Math.cos(a) * r, y: 700 + Math.sin(a) * r, alpha: 0, scale: .2, duration: Phaser.Math.Between(180, 320), onComplete: () => q.destroy() }); } }
-  ok(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); const r = this.run.catch(); Audio.catch(); const s = this.run.streak, big = r.bonus || s >= 4; this.burst(x, C[this.lane], r.bonus ? 24 : s >= 3 ? 13 : 6); this.tweens.add({ targets: this.player, scaleX: r.bonus ? 1.38 : 1.17, scaleY: r.bonus ? .75 : .89, yoyo: true, duration: r.bonus ? 100 : 60 }); if (r.bonus) { this.cameras.main.flash(75, 120, 255, 170, false); this.flash('GREAT STREAK!', 540); } else if (s === 4) this.flash('ON FIRE!', 380); else if (s === 3) this.flash('GREAT CATCH!', 300); else if (s === 2) this.flash('NICE!', 220); else if (Phaser.Math.Between(1, 4) === 1) this.flash('GOOD CATCH!', 170); if (big) this.cameras.main.zoomTo(1.012, 65); if (big) this.time.delayedCall(70, () => this.cameras.main.zoomTo(1, 100)); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
-  gold(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.run.score++; this.run.coins += 5; this.run.level = Math.floor(this.run.score / 10) + 1; Audio.gold(); this.burst(x, G, 26); this.cameras.main.flash(90, 255, 220, 80, false); this.flash('JACKPOT!', 500); this.hud(); }
-  levelFx() { const t = this.add.text(195, 390, 'LEVEL ' + this.run.level + '!\nKEEP GOING!', { align: 'center', fontFamily: 'Arial', fontSize: '38px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(.5).setDepth(35).setAlpha(0).setScale(.5); this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 180, yoyo: true, hold: 180, onComplete: () => t.destroy() }); this.cameras.main.zoomTo(1.025, 90); this.time.delayedCall(100, () => this.cameras.main.zoomTo(1, 140)); }
+  streakFx(s: number) {
+    if (s < 2) return;
+    const col = C[this.lane], sparks = s >= 4 ? 6 : 3;
+    for (let i = 0; i < sparks; i++) {
+      const a = (Math.PI * 2 / sparks) * i + this.visualTime * .004;
+      const q = this.add.circle(this.player.x + Math.cos(a) * 36, this.player.y + Math.sin(a) * 25, s >= 4 ? 3 : 2, s >= 4 ? 0xffffff : col, .72).setDepth(23).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: q, x: this.player.x + Math.cos(a + .9) * 50, y: this.player.y + Math.sin(a + .9) * 34, alpha: 0, scale: .3, duration: 270, ease: 'Sine.easeOut', onComplete: () => q.destroy() });
+    }
+  }
+  jackpotFx(x: number) {
+    this.burst(x, G, 25);
+    const edge = this.add.rectangle(195, 422, 390, 844, G, .07).setDepth(28).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: edge, alpha: 0, duration: 420, ease: 'Sine.easeOut', onComplete: () => edge.destroy() });
+    const shock = this.add.circle(x, 700, 22, G, .05).setStrokeStyle(7, G, .9).setDepth(24).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: shock, scale: 5.4, alpha: 0, duration: 330, ease: 'Cubic.easeOut', onComplete: () => shock.destroy() });
+    for (let i = 0; i < 22; i++) {
+      const a = Phaser.Math.FloatBetween(0, Math.PI * 2), r = Phaser.Math.Between(55, 155);
+      const q = this.add.circle(x, 700, Phaser.Math.Between(2, 4), i % 4 === 0 ? 0xffffff : G, .95).setDepth(25).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: q, x: x + Math.cos(a) * r, y: 700 + Math.sin(a) * r, alpha: 0, scale: .25, duration: Phaser.Math.Between(260, 480), ease: 'Sine.easeOut', onComplete: () => q.destroy() });
+    }
+    this.cameras.main.flash(120, 255, 220, 80, false);
+    this.cameras.main.zoomTo(1.028, 90);
+    this.cameras.main.rotateTo(Phaser.Math.FloatBetween(-.025, .025), 90, false, 'Sine.easeOut');
+    this.time.delayedCall(110, () => { this.cameras.main.zoomTo(1, 180); this.cameras.main.rotateTo(0, 180, false, 'Sine.easeInOut'); });
+  }
+  burst(x: number, col: number, n = 18) {
+    const flash = this.add.circle(x, 700, 24, 0xffffff, .32).setDepth(22).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: flash, alpha: 0, scale: 1.9, duration: 120, ease: 'Sine.easeOut', onComplete: () => flash.destroy() });
+    const core = this.add.circle(x, 700, 18, col, .24).setDepth(21).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: core, alpha: 0, scale: 2.3, duration: 180, onComplete: () => core.destroy() });
+    const ring = this.add.circle(x, 700, 18, col, .08).setStrokeStyle(4, col, .95).setDepth(20).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: ring, scale: 4.2, alpha: 0, duration: 250, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    for (let i = 0; i < n; i++) {
+      const a = Phaser.Math.FloatBetween(-Math.PI, 0), r = Phaser.Math.Between(34, 92);
+      const q = this.add.rectangle(x, 700, Phaser.Math.Between(2, 4), Phaser.Math.Between(5, 10), i % 5 === 0 ? 0xffffff : col, .95).setDepth(21).setAngle(Phaser.Math.Between(0, 180)).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: q, x: x + Math.cos(a) * r, y: 700 + Math.sin(a) * r, alpha: 0, scale: .25, duration: Phaser.Math.Between(170, 290), ease: 'Sine.easeOut', onComplete: () => q.destroy() });
+    }
+  }
+  ok(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); const r = this.run.catch(); Audio.catch(); const s = this.run.streak, big = r.bonus || s >= 4; this.burst(x, C[this.lane], r.bonus ? 24 : s >= 3 ? 20 : 16); this.streakFx(s); this.tweens.add({ targets: this.player, scaleX: r.bonus ? 1.38 : 1.17, scaleY: r.bonus ? .75 : .89, yoyo: true, duration: r.bonus ? 100 : 60 }); if (r.bonus) { this.cameras.main.flash(75, 120, 255, 170, false); this.flash('GREAT STREAK!', 540); } else if (s === 4) this.flash('ON FIRE!', 380); else if (s === 3) this.flash('GREAT CATCH!', 300); else if (s === 2) this.flash('NICE!', 220); else if (Phaser.Math.Between(1, 4) === 1) this.flash('GOOD CATCH!', 170); if (big) this.cameras.main.zoomTo(1.016, 80); if (big) this.time.delayedCall(90, () => this.cameras.main.zoomTo(1, 130)); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
+  gold(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.run.score++; this.run.coins += 5; this.run.level = Math.floor(this.run.score / 10) + 1; Audio.gold(); this.jackpotFx(x); this.flash('JACKPOT!', 500); this.hud(); }
+  levelFx() { const t = this.add.text(195, 390, 'LEVEL ' + this.run.level + '!\nKEEP GOING!', { align: 'center', fontFamily: 'Arial', fontSize: '38px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(.5).setDepth(35).setAlpha(0).setScale(.5); const ring = this.add.circle(this.player.x, this.player.y, 28, 0xffffff, .05).setStrokeStyle(5, 0xffffff, .8).setDepth(24).setBlendMode(Phaser.BlendModes.ADD); const glow = this.add.rectangle(195, 422, 390, 844, C[this.lane], .06).setDepth(3).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: ring, scale: 7, alpha: 0, duration: 420, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() }); this.tweens.add({ targets: glow, alpha: 0, duration: 450, onComplete: () => glow.destroy() }); this.tweens.add({ targets: this.player, y: this.player.y - 12, yoyo: true, duration: 120, ease: 'Sine.easeOut' }); for (let i = 0; i < 18; i++) { const q = this.add.rectangle(this.player.x, this.player.y, 3, 8, C[i % 3], .86).setDepth(24).setAngle(Phaser.Math.Between(0, 180)).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: q, x: this.player.x + Phaser.Math.Between(-120, 120), y: this.player.y + Phaser.Math.Between(-95, 45), alpha: 0, scale: .3, duration: Phaser.Math.Between(320, 520), ease: 'Sine.easeOut', onComplete: () => q.destroy() }); } this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 180, yoyo: true, hold: 180, onComplete: () => t.destroy() }); this.cameras.main.zoomTo(1.025, 90); this.time.delayedCall(100, () => this.cameras.main.zoomTo(1, 140)); }
   miss(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); const dead = this.run.miss(); Audio.miss(); const warning = dead ? 'FIGHT OVER' : this.run.lives === 1 ? 'LAST FIGHT!' : this.run.lives === 2 ? 'DANGER ZONE!' : 'LIFE LOST!'; this.cameras.main.shake(dead ? 260 : this.run.lives === 1 ? 205 : 125, dead ? .02 : this.run.lives === 1 ? .015 : .009); this.cameras.main.flash(dead ? 130 : this.run.lives === 1 ? 90 : 60, 255, 35, 60, false); const slash = this.add.rectangle(x, 700, 85, 8, 0xffffff, .9).setAngle(-35).setDepth(25); this.tweens.add({ targets: slash, alpha: 0, scaleX: 1.8, duration: 180, onComplete: () => slash.destroy() }); if (!dead && this.run.lives === 1) { this.danger.setAlpha(.055); this.tweens.add({ targets: this.danger, alpha: .13, yoyo: true, repeat: -1, duration: 520 }); } else if (!dead && this.run.lives === 2) this.danger.setAlpha(.025); this.flash(warning, dead ? 700 : this.run.lives === 1 ? 560 : 420); this.hud(); if (dead) { Audio.stopMusic(); this.danger.setAlpha(.2); this.time.delayedCall(120, () => this.cameras.main.shake(280, .022)); this.playing = false; this.time.delayedCall(650, () => this.over()); } }
   togglePause() { this.paused = !this.paused; this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
