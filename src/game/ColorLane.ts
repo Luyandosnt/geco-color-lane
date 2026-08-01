@@ -3,7 +3,7 @@ import { Core, SkinId } from '../core/Core';
 import { RunSystem } from '../core/RunSystem';
 import { Audio } from '../core/Audio';
 import { Online } from '../core/Online';
-import { BackgroundEvolutionManager } from './BackgroundEvolutionManager';
+import { TerrainAssets, TerrainRestorationManager } from './TerrainRestorationManager';
 
 type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
@@ -19,17 +19,20 @@ export class ColorLane extends Phaser.Scene {
   score!: Phaser.GameObjects.Text; streak!: Phaser.GameObjects.Text; lives!: Phaser.GameObjects.Text; level!: Phaser.GameObjects.Text;
   title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text;
   version!: Phaser.GameObjects.Text;
-  background!: BackgroundEvolutionManager;
+  terrain!: TerrainRestorationManager; plane!: Phaser.GameObjects.Image;
   aura!: Phaser.GameObjects.Arc; rays: Phaser.GameObjects.Rectangle[] = []; dangerEdges: Phaser.GameObjects.Rectangle[] = [];
   overlay!: Phaser.GameObjects.Rectangle; danger!: Phaser.GameObjects.Rectangle; lanes = [65, 195, 325];
 
   constructor() { super('ColorLane'); }
 
+  preload() {
+    TerrainRestorationManager.preload(this);
+  }
+
   create() {
-    this.background = new BackgroundEvolutionManager(this, this.lanes, C);
-    this.background.create();
+    this.terrain = new TerrainRestorationManager(this);
+    this.terrain.create();
     this.lanes.forEach((x, i) => {
-      this.add.rectangle(x, 430, 126, 720, C[i], .045);
       this.add.rectangle(x, 430, 2, 720, 0xffffff, .09);
       this.add.text(x, 92, N[i], { fontFamily: 'Arial', fontSize: '12px', color: '#94a3b8', fontStyle: 'bold' }).setOrigin(.5);
     });
@@ -50,6 +53,7 @@ export class ColorLane extends Phaser.Scene {
     this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); if (this.playing) this.togglePause(); });
     this.status = this.add.text(195, 150, '', { fontFamily: 'Arial', fontSize: '20px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 340 } }).setOrigin(.5).setDepth(70);
     this.player = this.add.rectangle(this.lanes[1], 720, 64, 64, C[1]).setStrokeStyle(4, 0xffffff, .95).setDepth(10);
+    this.plane = this.add.image(this.player.x, this.player.y, TerrainAssets.plane).setDisplaySize(92, 92).setDepth(11).setVisible(false);
     this.aura = this.add.circle(this.player.x, this.player.y, 46, C[1], 0).setStrokeStyle(3, C[1], 0).setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     this.rays = [-18, 0, 18].map((off, i) => this.add.rectangle(this.player.x + off, this.player.y + 24, 5, 70 + i * 10, C[1], 0).setAngle(off * .35).setDepth(8).setBlendMode(Phaser.BlendModes.ADD));
     this.gates = this.add.group();
@@ -83,7 +87,7 @@ export class ColorLane extends Phaser.Scene {
 
   home() {
     Audio.stopMusic();
-    this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.pause.setText('');
+    this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText('');
     this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.shell(true);
     this.title.setFontSize(48).setText('COLOR\nLANE');
     this.hint.setText('BEST ' + Core.data.highScore + '  •  ' + Core.data.coins + ' COINS\n' + (Online.user ? 'SIGNED IN: ' + Online.name() : 'PLAYING AS GUEST'));
@@ -96,7 +100,7 @@ export class ColorLane extends Phaser.Scene {
   }
 
   tutorial(step = 0) {
-    this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.pause.setText(''); this.shell(true);
+    this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.shell(true);
     const pages = [
       ['HOW TO PLAY', 'MATCH THE COLOR\n\nA colored box falls down one of three lanes.\nMove your block into the SAME COLOR lane before it reaches the bottom.'],
       ['MOVE FAST', 'TAP A LANE\n\nTap the GREEN, BLUE or RED side of the screen to move instantly.\n\nWatch the next falling box — then choose its lane.'],
@@ -173,14 +177,15 @@ export class ColorLane extends Phaser.Scene {
   }
   move(i: number) { if (i === this.lane) return; const from = this.player.x; this.trail(from, this.lanes[i], C[i]); this.lane = i; this.player.setFillStyle(C[i]); Audio.move(); this.tweens.killTweensOf(this.player); this.tweens.add({ targets: this.player, x: this.lanes[i], duration: 100, ease: 'Back.out' }); }
 
-  start() { this.clear(); this.time.removeAllEvents(); this.tweens.killTweensOf(this.player); this.gates.clear(true, true); this.run.reset(); this.playing = true; this.paused = false; Audio.startMusic(); this.pattern = []; this.pi = 0; this.lane = 1; this.danger.setAlpha(0); this.shell(false); this.player.setVisible(true).setAlpha(1).setPosition(this.lanes[1], 720).setFillStyle(C[1]); this.skin(); this.hud(); this.pause.setText('Ⅱ PAUSE'); this.flash('GO!', 500); this.cameras.main.fadeIn(220, 0, 0, 0); this.time.delayedCall(500, () => { this.spawn(); this.schedule(); }); }
+  start() { this.clear(); this.time.removeAllEvents(); this.tweens.killTweensOf(this.player); this.gates.clear(true, true); this.run.reset(); this.playing = true; this.paused = false; Audio.startMusic(); this.pattern = []; this.pi = 0; this.lane = 1; this.danger.setAlpha(0); this.shell(false); this.player.setVisible(true).setAlpha(.16).setPosition(this.lanes[1], 720).setFillStyle(C[1]); this.plane.setVisible(true).setPosition(this.player.x, this.player.y); this.skin(); this.hud(); this.pause.setText('Ⅱ PAUSE'); this.flash('GO!', 500); this.cameras.main.fadeIn(220, 0, 0, 0); this.time.delayedCall(500, () => { this.spawn(); this.schedule(); }); }
   hud() { const s = this.run.snapshot(); this.lives.setText('♥'.repeat(s.lives)); this.level.setText('LEVEL ' + s.level); this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : ''); this.score.setText(String(s.score)); }
   schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
   choose() { const l = this.run.level; if (this.pi >= this.pattern.length) { if (l < 3) this.pattern = [Phaser.Math.Between(0, 2)]; else { const a = Phaser.Math.Between(0, 2), b = (a + Phaser.Math.Between(1, 2)) % 3; this.pattern = l < 7 ? [a, b, a] : [a, (a + 1) % 3, (a + 2) % 3]; } this.pi = 0; } return this.pattern[this.pi++]; }
   spawn() { if (this.gates.getLength() >= 3) return; const gold = this.run.score >= 5 && Phaser.Math.Between(1, 13) === 1, l = gold ? Phaser.Math.Between(0, 2) : this.choose(), col = gold ? G : C[l], box = this.add.rectangle(this.lanes[l], -38, gold ? 58 : 92, gold ? 58 : 46, col).setStrokeStyle(gold ? 6 : 4, gold ? G : 0xffffff, .95), lab = this.add.text(this.lanes[l], -38, gold ? '★' : N[l], { fontFamily: 'Arial', fontSize: gold ? '22px' : '12px', color: gold ? '#111827' : '#fff', fontStyle: 'bold' }).setOrigin(.5), g = this.add.container(0, 0, [box, lab]) as Gate; g.lane = l; g.gold = gold; g.setDepth(12).setScale(.7).setAlpha(0); this.tweens.add({ targets: g, scale: 1, alpha: 1, duration: 180, ease: 'Back.out' }); if (gold) this.tweens.add({ targets: box, scale: 1.12, yoyo: true, repeat: -1, duration: 280 }); this.gates.add(g); }
   visualUpdate(d: number) {
     this.visualTime += d;
-    this.background.update(this.run.score, this.run.streak, this.run.lives, this.lane, d);
+    this.terrain.update(this.speed, this.player.x, this.playing, this.paused, d);
+    this.plane.setPosition(this.player.x, this.player.y).setVisible(this.playing);
     const s = this.run.streak, col = C[this.lane], aura = this.playing ? Math.min(.28, Math.max(0, (s - 2) * .045)) : 0;
     this.aura.setPosition(this.player.x, this.player.y).setFillStyle(col, aura * .22).setStrokeStyle(3 + Math.min(5, s), col, aura);
     this.aura.setScale(1 + Math.sin(this.visualTime / 180) * .04 + Math.min(.28, s * .015));
@@ -243,5 +248,5 @@ export class ColorLane extends Phaser.Scene {
   togglePause() { this.paused = !this.paused; this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
 
-  async over() { Audio.stopMusic(); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('SCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nLEVEL ' + s.level + ' • +' + s.coins + ' COINS\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
+  async over() { Audio.stopMusic(); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('SCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nLEVEL ' + s.level + ' • +' + s.coins + ' COINS\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
 }
