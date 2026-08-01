@@ -56,18 +56,18 @@ export class ColorLane extends Phaser.Scene {
       this.add.rectangle(386, 422, 8, 844, 0xf43f5e, 0)
     ].map(x => x.setDepth(29).setBlendMode(Phaser.BlendModes.ADD));
     this.add.image(195, 43, UI_ASSETS.panels.hud.key).setDisplaySize(378, 54).setDepth(30).setAlpha(.96);
-    hyperIcon(this, 25, 28, UI_ASSETS.icons.star.key, 24, 32);
-    this.score = this.add.text(366, 14, '', { fontFamily: 'Arial', fontSize: '29px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
-    this.lives = this.add.text(42, 50, '', { fontFamily: 'Arial', fontSize: '10px', color: '#94a3b8', fontStyle: 'bold' }).setDepth(32);
-    this.lifePips = [0, 1, 2].map(i => hyperIcon(this, 25 + i * 18, 59, UI_ASSETS.icons.badge.key, 18, 32));
-    this.level = this.add.text(195, 24, '', { fontFamily: 'Arial', fontSize: '13px', color: '#e5e7eb', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
-    this.streak = this.add.text(366, 48, '', { fontFamily: 'Arial', fontSize: '11px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
-    this.fuelLabel = this.add.text(43, 18, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
-    this.fuelBar = this.add.image(80, 35, UI_ASSETS.panels.card.key).setDisplaySize(82, 22).setDepth(32);
-    this.fuelFill = this.add.rectangle(45, 35, 70, 6, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
-    this.restoreHud = this.add.text(195, 47, '', { fontFamily: 'Arial', fontSize: '10px', color: '#93c5fd', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
-    this.restoreBoost = this.add.rectangle(165, 62, 60, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
-    this.worldHud = this.add.text(366, 62, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(32);
+    hyperIcon(this, 24, 27, UI_ASSETS.icons.star.key, 26, 32);
+    this.score = this.add.text(366, 10, '', { fontFamily: 'Arial', fontSize: '34px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
+    this.lives = this.add.text(0, 0, '', { fontFamily: 'Arial', fontSize: '1px', color: '#94a3b8' }).setDepth(32);
+    this.lifePips = [0, 1, 2].map(i => hyperIcon(this, 29 + i * 18, 58, UI_ASSETS.icons.badge.key, 20, 32));
+    this.level = this.add.text(195, 20, '', { fontFamily: 'Arial', fontSize: '16px', color: '#e5e7eb', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
+    this.streak = this.add.text(366, 47, '', { fontFamily: 'Arial', fontSize: '13px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
+    this.fuelLabel = this.add.text(43, 17, '', { fontFamily: 'Arial', fontSize: '14px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
+    this.fuelBar = this.add.image(83, 37, UI_ASSETS.panels.card.key).setDisplaySize(90, 24).setDepth(32);
+    this.fuelFill = this.add.rectangle(45, 37, 76, 8, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
+    this.restoreHud = this.add.text(195, 45, '', { fontFamily: 'Arial', fontSize: '13px', color: '#93c5fd', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
+    this.restoreBoost = this.add.rectangle(160, 61, 70, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
+    this.worldHud = this.add.text(366, 62, '', { fontFamily: 'Arial', fontSize: '12px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(32);
     this.debugResources = this.add.text(12, 116, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
     this.pauseBg = this.add.image(195, 805, UI_ASSETS.buttons.primary.key).setDisplaySize(130, 50).setDepth(59).setVisible(false);
     this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#e5e7eb', padding: { x: 20, y: 8 }, fontStyle: 'bold', stroke: '#0f172a', strokeThickness: 3 }).setOrigin(.5).setDepth(60).setInteractive();
@@ -91,7 +91,7 @@ export class ColorLane extends Phaser.Scene {
     this.shellPanel = hyperPanel(this, 195, 418, UI_ASSETS.panels.menu.key, 344, 49).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(14, 820, 'v0.1.17 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(14, 820, 'v0.1.18 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
       const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
@@ -113,18 +113,19 @@ export class ColorLane extends Phaser.Scene {
     const variant = this.buttonVariant(clean);
     const iconKey = this.buttonIcon(clean);
     const noLabel = ['PLAY', 'LEADERBOARD', 'SHOP', 'SETTING', 'SETTINGS', 'RESUME', 'BACK'].some(x => clean === x);
-    const b = hyperButton(this, 195, y, { variant, iconKey, width: Math.min(Math.max(w, 150), 230), label: noLabel ? undefined : clean, noLabel, onClick: cb });
+    const b = hyperButton(this, 195, y, { variant, iconKey, width: Math.min(Math.max(w, 145), 235), label: noLabel ? undefined : clean, noLabel, onClick: cb });
     this.menu.push(b);
   }
   buttonVariant(clean: string): UIButtonVariant {
-    if (clean.includes('PLAY') && !clean.includes('AGAIN')) return 'play';
-    if (clean.includes('LEADERBOARD')) return 'leaderboard';
+    if (clean === 'PLAY') return 'play';
+    if (clean === 'LEADERBOARD') return 'leaderboard';
     if (clean === 'SHOP') return 'shop';
-    if (clean.includes('SETTING')) return 'settings';
-    if (clean.includes('RESUME')) return 'resume';
+    if (clean === 'SETTINGS' || clean === 'SETTING') return 'settings';
+    if (clean === 'RESUME') return 'resume';
     if (clean.includes('BACK') || clean.includes('HOME')) return clean.includes('HOME') ? 'primary' : 'back';
-    if (clean.includes('CREATE') || clean.includes('SIGN') || clean.includes('CONFIRM') || clean.includes('EQUIP') || clean.includes('UNLOCK')) return 'confirm';
-    if (clean.includes('AGAIN') || clean.includes('RETRY')) return 'retry';
+    if (clean === 'CONFIRM') return 'confirm';
+    if (clean === 'RETRY') return 'retry';
+    if (clean.includes('CREATE') || clean.includes('SIGN') || clean.includes('EQUIP') || clean.includes('UNLOCK')) return 'primary';
     return clean.includes('PLAY') ? 'gold' : 'primary';
   }
   buttonIcon(clean: string) {
@@ -132,6 +133,8 @@ export class ColorLane extends Phaser.Scene {
     if (clean.includes('ACCOUNT') || clean.includes('SIGN') || clean.includes('CREATE')) return UI_ASSETS.icons.profile.key;
     if (clean.includes('SHOP')) return UI_ASSETS.icons.shop.key;
     if (clean.includes('SETTING')) return UI_ASSETS.icons.settings.key;
+    if (clean.includes('SOUND')) return clean.includes('OFF') ? UI_ASSETS.icons.soundOff.key : UI_ASSETS.icons.soundOn.key;
+    if (clean.includes('VIBRATION')) return UI_ASSETS.icons.badge.key;
     if (clean.includes('HOW') || clean.includes('HELP')) return UI_ASSETS.icons.help.key;
     if (clean.includes('RANK') || clean.includes('LEADERBOARD')) return UI_ASSETS.icons.leaderboard.key;
     return undefined;
@@ -146,78 +149,83 @@ export class ColorLane extends Phaser.Scene {
   home() {
     Audio.stopMusic();
     this.onboarding?.cancel();
-    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277);
+    this.shellPanel.setTexture(UI_ASSETS.panels.tallCard.key).setDisplaySize(350, 372).setPosition(195, 420);
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false);
     this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
-    this.title.setFontSize(48).setText('COLOR\nLANE');
-    this.hint.setText('BEST ' + Core.data.highScore + '  •  ' + Core.data.coins + ' COINS\n' + (Online.user ? 'SIGNED IN: ' + Online.name() : 'PLAYING AS GUEST') + '\n\nWORLD RESTORATION\n' + Core.data.worldRestorationPercent.toFixed(1) + '%');
+    const titleCard = hyperPanel(this, 195, 150, UI_ASSETS.panels.card.key, 270, 50);
+    const worldCard = hyperPanel(this, 195, 245, UI_ASSETS.panels.card.key, 292, 50);
+    const coin = hyperIcon(this, 288, 222, UI_ASSETS.icons.coin.key, 22, 52);
+    this.menu.push(titleCard, worldCard, coin);
+    this.title.setPosition(195, 150).setFontSize(36).setText('COLOR LANE');
+    this.hint.setPosition(195, 235).setFontSize(14).setText('WORLD RESTORATION\n' + Core.data.worldRestorationPercent.toFixed(1) + '%\nBEST ' + Core.data.highScore + '   ' + Core.data.coins + ' COINS');
     this.version.setVisible(true);
-    this.btn(435, '▶  PLAY', () => Core.data.tutorialSeen ? this.start() : this.tutorial(0));
-    this.btn(490, '🏆  LEADERBOARD', () => this.board());
-    this.btn(545, Online.user ? '👤  ACCOUNT' : '👤  SIGN IN', () => this.account());
-    this.btn(600, '★  SHOP', () => this.shop());
-    this.btn(655, '⚙  SETTINGS', () => this.settings());
+    this.btn(335, 'PLAY', () => Core.data.tutorialSeen ? this.start() : this.tutorial(0), 210);
+    this.btn(405, 'LEADERBOARD', () => this.board(), 178);
+    this.btn(465, Online.user ? 'ACCOUNT' : 'SIGN IN', () => this.account(), 178);
+    this.btn(525, 'SHOP', () => this.shop(), 178);
+    this.btn(585, 'SETTINGS', () => this.settings(), 178);
   }
 
   tutorial(step = 0) {
     this.onboarding?.cancel();
+    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418);
     this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false); this.shell(true);
     const pages = [
       ['HOW TO PLAY', 'MATCH THE COLOR\n\nA colored box falls down one of three lanes.\nMove your block into the SAME COLOR lane before it reaches the bottom.'],
-      ['MOVE FAST', 'TAP A LANE\n\nTap the GREEN, BLUE or RED side of the screen to move instantly.\n\nWatch the next falling box — then choose its lane.'],
+      ['MOVE FAST', 'TAP A LANE\n\nTap one of the three lane zones to move instantly.\n\nWatch the next falling pickup — then choose its lane.'],
       ['BUILD MOMENTUM', 'KEEP MATCHING\n\nConsecutive catches build FLOW and ON FIRE streaks.\nLong streaks earn stronger rewards and feedback.'],
       ['GOLD = REWARD', 'CATCH ★ GOLD\n\nGold boxes can appear in ANY lane.\nCatch them for bonus coins and JACKPOT rewards.'],
       ['SURVIVE', 'YOU HAVE 3 LIVES\n\nMiss a colored box and you lose a life.\nDANGER ZONE means two remain.\nLAST FIGHT means one remains.'],
       ['READY?', 'MATCH. STREAK. SURVIVE.\n\nRead the falling box, move to its lane, and keep the run alive as the game gets faster.']
     ];
     const page = pages[Math.max(0, Math.min(step, pages.length - 1))];
-    this.title.setFontSize(step === 0 ? 40 : 36).setText(page[0]); this.hint.setText(page[1]);
-    if (step > 0) this.btn(610, '← BACK', () => this.tutorial(step - 1), 120);
-    if (step < pages.length - 1) this.btn(610, 'NEXT →', () => this.tutorial(step + 1), 120);
-    else this.btn(610, '▶ PLAY', () => { Core.markTutorial(); this.start(); }, 180);
-    this.btn(675, '⌂ HOME', () => this.home(), 180);
+    this.title.setPosition(195, 210).setFontSize(step === 0 ? 40 : 36).setText(page[0]); this.hint.setPosition(195, 345).setFontSize(16).setText(page[1]);
+    if (step > 0) this.btn(605, 'BACK', () => this.tutorial(step - 1), 155);
+    if (step < pages.length - 1) this.btn(605, 'NEXT', () => this.tutorial(step + 1), 155);
+    else this.btn(605, 'PLAY', () => { Core.markTutorial(); this.start(); }, 180);
+    this.btn(665, 'HOME', () => this.home(), 170);
   }
 
   account() {
-    this.clear(); this.shell(true); this.title.setFontSize(42).setText(Online.user ? 'ACCOUNT' : 'GECO ACCOUNT');
-    if (Online.user) { this.hint.setText(Online.name() + '\n' + Online.user.email + '\n\nYour best runs are submitted globally.'); this.btn(490, '🏆 VIEW RANK', () => this.board()); this.btn(550, 'SIGN OUT', async () => { await Online.signOut(); this.home(); }); this.btn(610, '← HOME', () => this.home()); return; }
-    this.hint.setText('Sign in to join global rankings.\nGuest play remains available.'); this.btn(475, 'SIGN IN', () => this.authForm(false)); this.btn(535, 'CREATE ACCOUNT', () => this.authForm(true)); this.btn(600, '← HOME', () => this.home());
+    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 220).setFontSize(42).setText(Online.user ? 'ACCOUNT' : 'GECO ACCOUNT');
+    if (Online.user) { this.hint.setPosition(195, 345).setFontSize(16).setText(Online.name() + '\n' + Online.user.email + '\n\nYour best runs are submitted globally.'); this.btn(485, 'VIEW RANK', () => this.board(), 190); this.btn(545, 'SIGN OUT', async () => { await Online.signOut(); this.home(); }, 190); this.btn(605, 'HOME', () => this.home(), 170); return; }
+    this.hint.setPosition(195, 340).setFontSize(16).setText('Sign in to join global rankings.\nGuest play remains available.'); this.btn(465, 'SIGN IN', () => this.authForm(false), 190); this.btn(525, 'CREATE ACCOUNT', () => this.authForm(true), 210); this.btn(585, 'HOME', () => this.home(), 170);
   }
 
   authForm(create: boolean, message = '') {
-    this.clear(); this.shell(true); this.title.setFontSize(create ? 36 : 42).setText(create ? 'CREATE ACCOUNT' : 'SIGN IN'); this.hint.setText(message || (create ? 'Choose a player name, email and password.' : 'Enter your GECO account details.'));
+    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 205).setFontSize(create ? 36 : 42).setText(create ? 'CREATE ACCOUNT' : 'SIGN IN'); this.hint.setPosition(195, 320).setFontSize(15).setText(message || (create ? 'Choose a player name, email and password.' : 'Enter your GECO account details.'));
     const name = create ? this.field(405, 'Player name (1-18 characters)') : null, email = this.field(create ? 465 : 425, 'Email address', 'email'), password = this.field(create ? 525 : 490, 'Password (minimum 6 characters)', 'password');
     this.btn(create ? 595 : 560, create ? 'CREATE ACCOUNT' : 'SIGN IN', async () => {
       const n = name?.value.trim() || '', e = email.value.trim(), p = password.value; this.blur();
       if (!e || p.length < 6 || (create && !n)) { this.hint.setText('CHECK YOUR DETAILS\nUse a valid email and password of at least 6 characters.'); return; }
       this.hint.setText(create ? 'CREATING ACCOUNT...' : 'SIGNING IN...');
       try {
-        if (create) { const r = await Online.signUp(e, p, n); this.clear(); this.shell(true); this.title.setFontSize(38).setText(r.needsConfirmation ? 'CHECK YOUR EMAIL' : 'WELCOME!'); this.hint.setText(r.needsConfirmation ? 'We sent a confirmation link to\n' + e + '\n\nConfirm it, then return and sign in.' : 'Signed in as ' + Online.name()); this.btn(590, r.needsConfirmation ? 'BACK TO SIGN IN' : 'HOME', () => r.needsConfirmation ? this.authForm(false) : this.home()); }
-        else { await Online.signIn(e, p); this.clear(); this.shell(true); this.title.setFontSize(42).setText('SIGNED IN'); this.hint.setText('WELCOME, ' + Online.name()); this.btn(590, 'CONTINUE', () => this.home()); }
+        if (create) { const r = await Online.signUp(e, p, n); this.clear(); this.shell(true); this.title.setPosition(195, 220).setFontSize(38).setText(r.needsConfirmation ? 'CHECK YOUR EMAIL' : 'WELCOME!'); this.hint.setPosition(195, 350).setFontSize(15).setText(r.needsConfirmation ? 'We sent a confirmation link to\n' + e + '\n\nConfirm it, then return and sign in.' : 'Signed in as ' + Online.name()); this.btn(590, r.needsConfirmation ? 'BACK TO SIGN IN' : 'HOME', () => r.needsConfirmation ? this.authForm(false) : this.home()); }
+        else { await Online.signIn(e, p); this.clear(); this.shell(true); this.title.setPosition(195, 220).setFontSize(42).setText('SIGNED IN'); this.hint.setPosition(195, 345).setFontSize(16).setText('WELCOME, ' + Online.name()); this.btn(590, 'CONTINUE', () => this.home()); }
       } catch (err: any) { const msg = String(err?.message || 'AUTHENTICATION FAILED').replace(/^AuthApiError:\s*/, '').slice(0, 100); this.hint.setText('ACCOUNT ERROR\n\n' + msg + '\n\nCorrect the details above and try again.'); }
     });
     this.btn(create ? 655 : 625, '← BACK', () => { this.blur(); this.account(); });
   }
 
   async board() {
-    this.clear(); this.shell(true); this.title.setFontSize(38).setText('GLOBAL TOP 10'); this.hint.setText('LOADING...');
+    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 215).setFontSize(38).setText('GLOBAL TOP 10'); this.hint.setPosition(195, 350).setFontSize(15).setText('LOADING...');
     try { const rows = await Online.top(10), rank = await Online.rank(); let text = rows.length ? rows.map((r, i) => (i + 1) + '. ' + r.display_name + '   ' + r.best_score).join('\n') : 'NO SCORES YET'; text += rank ? '\n\nYOUR RANK  #' + rank.rank + '   •   BEST ' + rank.score : Online.user ? '\n\nFINISH A RUN TO GET RANKED' : '\n\nSIGN IN TO JOIN THE RANKINGS'; this.hint.setText(text); }
     catch (e: any) { this.hint.setText('LEADERBOARD UNAVAILABLE\n' + String(e?.message || '').slice(0, 50)); }
-    this.btn(690, '← HOME', () => this.home());
+    this.btn(675, 'HOME', () => this.home(), 170);
   }
 
   shop() {
-    this.clear(); this.shell(true); this.title.setFontSize(40).setText('STYLE SHOP'); this.hint.setText('BALANCE ' + Core.data.coins + ' COINS');
-    (['classic', 'sunset', 'neon'] as SkinId[]).forEach((s, i) => { const o = Core.data.unlocked.includes(s), sel = Core.data.skin === s; this.btn(440 + i * 58, (sel ? '✓ ' : o ? 'EQUIP ' : 'UNLOCK ') + s.toUpperCase() + (o ? '' : ' • ' + Core.price(s)), () => { Core.buy(s) ? this.shop() : this.flash('NEED MORE COINS', 500); }); });
-    this.btn(640, '← HOME', () => this.home());
+    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 210).setFontSize(40).setText('STYLE SHOP'); this.hint.setPosition(195, 315).setFontSize(15).setText('BALANCE ' + Core.data.coins + ' COINS');
+    (['classic', 'sunset', 'neon'] as SkinId[]).forEach((s, i) => { const o = Core.data.unlocked.includes(s), sel = Core.data.skin === s; this.btn(410 + i * 58, (sel ? 'SELECTED ' : o ? 'EQUIP ' : 'UNLOCK ') + s.toUpperCase() + (o ? '' : ' ' + Core.price(s)), () => { Core.buy(s) ? this.shop() : this.flash('NEED MORE COINS', 500); }, 220); });
+    this.btn(620, 'HOME', () => this.home(), 170);
   }
 
   settings() {
-    this.clear(); this.shell(true); this.title.setFontSize(40).setText('SETTINGS'); this.hint.setText('Preferences save automatically');
-    this.btn(455, 'SOUND ' + (Core.data.sound ? 'ON' : 'OFF'), () => { Core.toggleSound(); Audio.syncMusicVolume(); this.settings(); });
-    this.btn(515, 'VIBRATION ' + (Core.data.vibration ? 'ON' : 'OFF'), () => { Core.toggleVibration(); this.settings(); });
-    this.btn(575, 'HOW TO PLAY', () => this.tutorial(0));
-    this.btn(640, '← HOME', () => this.home());
+    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 210).setFontSize(40).setText('SETTINGS'); this.hint.setPosition(195, 315).setFontSize(15).setText('Preferences save automatically');
+    this.btn(410, 'SOUND ' + (Core.data.sound ? 'ON' : 'OFF'), () => { Core.toggleSound(); Audio.syncMusicVolume(); this.settings(); }, 215);
+    this.btn(470, 'VIBRATION ' + (Core.data.vibration ? 'ON' : 'OFF'), () => { Core.toggleVibration(); this.settings(); }, 215);
+    this.btn(530, 'HOW TO PLAY', () => this.tutorial(0), 215);
+    this.btn(590, 'HOME', () => this.home(), 170);
   }
 
   skin() { const s = Core.data.skin; this.player.setScale(1).setAngle(0); if (s === 'sunset') { this.player.setStrokeStyle(8, 0xf97316, 1); this.player.setAngle(45).setScale(.86); } else if (s === 'neon') { this.player.setStrokeStyle(8, 0x22d3ee, 1); this.tweens.add({ targets: this.player, alpha: .62, yoyo: true, repeat: -1, duration: 420 }); } else this.player.setStrokeStyle(4, 0xffffff, .95); }
@@ -283,17 +291,17 @@ export class ColorLane extends Phaser.Scene {
     const s = this.run.snapshot();
     const fuel = Math.round(this.displayedFuel);
     const fuelColor = fuel < 10 ? 0xf43f5e : fuel < 25 ? 0xf97316 : fuel < 50 ? 0xfacc15 : 0x22c55e;
-    this.lives.setText('LIVES');
+    this.lives.setText('');
     this.lifePips.forEach((pip, i) => pip.setVisible(true).setTint(i < s.lives ? 0x38bdf8 : 0x334155).setAlpha(i < s.lives ? .95 : .45));
     this.level.setText('LEVEL ' + s.level);
     this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : '');
     this.score.setText(String(s.score));
-    this.fuelLabel.setText('FUEL ' + fuel + '%');
-    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 70 * fuel / 100;
+    this.fuelLabel.setText(fuel + '%');
+    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 76 * fuel / 100;
     this.fuelBar.setVisible(true);
     this.restoreHud.setText('RESTORE ×' + this.restorePower.multiplier().toFixed(1));
-    this.restoreBoost.setVisible(true).width = 60 * this.restorePower.boostRatio();
-    this.worldHud.setText('WORLD\n' + this.restoreProgress.displayTotal.toFixed(1) + '%');
+    this.restoreBoost.setVisible(true).width = 70 * this.restorePower.boostRatio();
+    this.worldHud.setText('WORLD ' + this.restoreProgress.displayTotal.toFixed(1) + '%');
   }
   schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
   choose() { return this.spawnDirector.next(this.run.level, this.run.score).lane; }
@@ -451,5 +459,5 @@ export class ColorLane extends Phaser.Scene {
   togglePause() { this.paused = !this.paused; this.paused ? this.onboarding.pause() : this.onboarding.resume(); this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
 
-  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m)); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('DISTANCE ' + Math.round(this.distance) + 'm\nSCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nFUEL CELLS ' + this.pickups.fuel + ' • WATER ' + this.pickups.water + ' • GOLD ' + this.pickups.gold + '\nRESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%\nWORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.pauseBg.setVisible(false); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
+  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m)); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.gameOver.key).setDisplaySize(340, 255).setPosition(195, 410); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setPosition(195, 210).setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setPosition(195, 350).setFontSize(14).setText('DISTANCE ' + Math.round(this.distance) + 'm\nSCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nFUEL CELLS ' + this.pickups.fuel + ' • WATER ' + this.pickups.water + ' • GOLD ' + this.pickups.gold + '\nRESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%\nWORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.pauseBg.setVisible(false); this.btn(555, 'PLAY AGAIN', () => this.start(), 190); this.btn(615, 'LEADERBOARD', () => this.board(), 178); this.btn(675, 'HOME', () => this.home(), 170); }
 }

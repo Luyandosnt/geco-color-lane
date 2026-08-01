@@ -28,7 +28,7 @@ export function hyperButton(scene: Phaser.Scene, x: number, y: number, options: 
   const children: Phaser.GameObjects.GameObject[] = [bg];
   let icon: Phaser.GameObjects.Image | undefined;
   if (options.iconKey) {
-    icon = scene.add.image(options.noLabel ? 0 : -width * .31, 0, options.iconKey).setDisplaySize(24, 24);
+    icon = scene.add.image(options.noLabel ? 0 : -width * .32, 0, options.iconKey).setDisplaySize(22, 22);
     children.push(icon);
   }
 
@@ -36,12 +36,13 @@ export function hyperButton(scene: Phaser.Scene, x: number, y: number, options: 
   if (!options.noLabel && options.label) {
     label = scene.add.text(icon ? 12 : 0, 0, options.label, {
       fontFamily: 'Arial',
-      fontSize: width > 170 ? '16px' : '14px',
+      fontSize: width > 190 ? '15px' : '13px',
       color: '#ffffff',
       fontStyle: 'bold',
       align: 'center',
       stroke: '#0f172a',
-      strokeThickness: 3
+      strokeThickness: 3,
+      wordWrap: { width: icon ? width * .55 : width * .72 }
     }).setOrigin(.5);
     children.push(label);
   }

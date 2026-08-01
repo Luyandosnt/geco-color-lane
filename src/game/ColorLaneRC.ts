@@ -50,13 +50,13 @@ export class ColorLaneRC extends ColorLane {
       this.paused=true;
       this.overlay.setVisible(true).setAlpha(.9);
       this.shell(true);
-      this.shellPanel.setTexture(UI_ASSETS.panels.pause.key).setDisplaySize(318, 340);
-      this.title.setFontSize(44).setText('PAUSED');
-      this.hint.setText('Your run is safe.\nResume when you are ready.');
+      this.shellPanel.setTexture(UI_ASSETS.panels.pause.key).setDisplaySize(318, 340).setPosition(195, 420);
+      this.title.setPosition(195, 275).setFontSize(44).setText('PAUSED');
+      this.hint.setPosition(195, 365).setFontSize(16).setText('Your run is safe.\nResume when you are ready.');
       this.pause.setText('');
       this.pauseBg.setVisible(false);
-      this.btn(505,'▶ RESUME',()=>this.resumeRun(),280);
-      this.btn(565,'⌂ GO TO HOME',()=>this.quitToHome(),280);
+      this.btn(485,'RESUME',()=>this.resumeRun(),190);
+      this.btn(545,'HOME',()=>this.quitToHome(),170);
     }else this.resumeRun();
   }
 
@@ -66,7 +66,7 @@ export class ColorLaneRC extends ColorLane {
     this.onboarding.resume();
     Audio.resumeMusic();
     this.shell(false);
-    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277);
+    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418);
     this.overlay.setVisible(false);
     this.pause.setText('Ⅱ PAUSE');
     this.pauseBg.setVisible(true);
@@ -84,10 +84,5 @@ export class ColorLaneRC extends ColorLane {
     this.danger.setAlpha(0);
     this.gates.clear(true,true);
     this.home();
-  }
-
-  settings(){
-    super.settings();
-    this.btn(670,'? HOW TO PLAY',()=>this.tutorial(),250);
   }
 }
