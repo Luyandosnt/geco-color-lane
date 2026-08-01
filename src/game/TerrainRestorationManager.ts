@@ -12,6 +12,8 @@ export const TerrainAssetPaths = {
   plane: '/assets/environment/plane.png'
 };
 
+export const AIRCRAFT_Y = 612;
+
 type TerrainChunk = {
   y: number;
   restoredCoverage: number;
@@ -22,10 +24,10 @@ type TerrainChunk = {
 export class TerrainRestorationManager {
   private scene: Phaser.Scene;
   private chunks: TerrainChunk[] = [];
-  private chunkHeight = 390;
+  private chunkHeight = 392;
   private chunkWidth = 390;
   private revealBandHeight = 155;
-  private planeY = 704;
+  private planeY = AIRCRAFT_Y;
   private coverageTotal = 0;
   private debug!: Phaser.GameObjects.Text;
 
@@ -40,7 +42,7 @@ export class TerrainRestorationManager {
   }
 
   create() {
-    for (let i = 0; i < 4; i++) this.chunks.push(this.createChunk((i - 1) * this.chunkHeight));
+    for (let i = 0; i < 4; i++) this.chunks.push(this.createChunk((i - 1) * (this.chunkHeight - 2)));
     this.debug = this.scene.add.text(12, 84, '', {
       fontFamily: 'Arial',
       fontSize: '11px',
@@ -95,7 +97,7 @@ export class TerrainRestorationManager {
 
   private recycleChunk(chunk: TerrainChunk) {
     const topY = Math.min(...this.chunks.map(c => c.y));
-    chunk.y = topY - this.chunkHeight;
+    chunk.y = topY - (this.chunkHeight - 2);
     chunk.restoredCoverage = 0;
     chunk.corrupted.setCrop();
   }

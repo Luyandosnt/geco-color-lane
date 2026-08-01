@@ -3,7 +3,7 @@ import { Core, SkinId } from '../core/Core';
 import { RunSystem } from '../core/RunSystem';
 import { Audio } from '../core/Audio';
 import { Online } from '../core/Online';
-import { TerrainAssets, TerrainRestorationManager } from './TerrainRestorationManager';
+import { AIRCRAFT_Y, TerrainAssets, TerrainRestorationManager } from './TerrainRestorationManager';
 
 type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
@@ -52,7 +52,7 @@ export class ColorLane extends Phaser.Scene {
     this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#cbd5e1', backgroundColor: '#0f172a', padding: { x: 16, y: 7 }, fontStyle: 'bold' }).setOrigin(.5).setDepth(60).setInteractive();
     this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); if (this.playing) this.togglePause(); });
     this.status = this.add.text(195, 150, '', { fontFamily: 'Arial', fontSize: '20px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 340 } }).setOrigin(.5).setDepth(70);
-    this.player = this.add.rectangle(this.lanes[1], 720, 64, 64, C[1]).setStrokeStyle(4, 0xffffff, .95).setDepth(10);
+    this.player = this.add.rectangle(this.lanes[1], AIRCRAFT_Y, 64, 64, C[1]).setStrokeStyle(4, 0xffffff, .95).setDepth(10);
     this.plane = this.add.image(this.player.x, this.player.y, TerrainAssets.plane).setDisplaySize(92, 92).setDepth(11).setVisible(false);
     this.aura = this.add.circle(this.player.x, this.player.y, 46, C[1], 0).setStrokeStyle(3, C[1], 0).setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     this.rays = [-18, 0, 18].map((off, i) => this.add.rectangle(this.player.x + off, this.player.y + 24, 5, 70 + i * 10, C[1], 0).setAngle(off * .35).setDepth(8).setBlendMode(Phaser.BlendModes.ADD));
@@ -166,7 +166,7 @@ export class ColorLane extends Phaser.Scene {
       g.lineStyle(width, col, alpha);
       g.beginPath();
       for (let i = 0; i <= 10; i++) {
-        const t = i / 10, x = Phaser.Math.Linear(from, to, t), y = 720 - Math.sin(t * Math.PI) * lift;
+        const t = i / 10, x = Phaser.Math.Linear(from, to, t), y = AIRCRAFT_Y - Math.sin(t * Math.PI) * lift;
         i ? g.lineTo(x, y) : g.moveTo(x, y);
       }
       g.strokePath();
@@ -177,7 +177,7 @@ export class ColorLane extends Phaser.Scene {
   }
   move(i: number) { if (i === this.lane) return; const from = this.player.x; this.trail(from, this.lanes[i], C[i]); this.lane = i; this.player.setFillStyle(C[i]); Audio.move(); this.tweens.killTweensOf(this.player); this.tweens.add({ targets: this.player, x: this.lanes[i], duration: 100, ease: 'Back.out' }); }
 
-  start() { this.clear(); this.time.removeAllEvents(); this.tweens.killTweensOf(this.player); this.gates.clear(true, true); this.run.reset(); this.playing = true; this.paused = false; Audio.startMusic(); this.pattern = []; this.pi = 0; this.lane = 1; this.danger.setAlpha(0); this.shell(false); this.player.setVisible(true).setAlpha(.16).setPosition(this.lanes[1], 720).setFillStyle(C[1]); this.plane.setVisible(true).setPosition(this.player.x, this.player.y); this.skin(); this.hud(); this.pause.setText('Ⅱ PAUSE'); this.flash('GO!', 500); this.cameras.main.fadeIn(220, 0, 0, 0); this.time.delayedCall(500, () => { this.spawn(); this.schedule(); }); }
+  start() { this.clear(); this.time.removeAllEvents(); this.tweens.killTweensOf(this.player); this.gates.clear(true, true); this.run.reset(); this.playing = true; this.paused = false; Audio.startMusic(); this.pattern = []; this.pi = 0; this.lane = 1; this.danger.setAlpha(0); this.shell(false); this.player.setVisible(true).setPosition(this.lanes[1], AIRCRAFT_Y).setFillStyle(C[1]); this.plane.setVisible(true).setPosition(this.player.x, this.player.y); this.skin(); this.player.setAlpha(0); this.hud(); this.pause.setText('Ⅱ PAUSE'); this.flash('GO!', 500); this.cameras.main.fadeIn(220, 0, 0, 0); this.time.delayedCall(500, () => { this.spawn(); this.schedule(); }); }
   hud() { const s = this.run.snapshot(); this.lives.setText('♥'.repeat(s.lives)); this.level.setText('LEVEL ' + s.level); this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : ''); this.score.setText(String(s.score)); }
   schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
   choose() { const l = this.run.level; if (this.pi >= this.pattern.length) { if (l < 3) this.pattern = [Phaser.Math.Between(0, 2)]; else { const a = Phaser.Math.Between(0, 2), b = (a + Phaser.Math.Between(1, 2)) % 3; this.pattern = l < 7 ? [a, b, a] : [a, (a + 1) % 3, (a + 2) % 3]; } this.pi = 0; } return this.pattern[this.pi++]; }
@@ -198,7 +198,7 @@ export class ColorLane extends Phaser.Scene {
     }
     const dangerAlpha = this.playing && this.run.lives === 1 ? .09 + Math.sin(this.visualTime / 1000 * Math.PI * 2) * .035 : 0;
     this.dangerEdges.forEach(e => e.setAlpha(Math.max(0, dangerAlpha)));
-    if (this.playing && this.run.lives === 1) this.player.setStrokeStyle(7, 0xfb7185, .95);
+    this.player.setAlpha(0);
   }
   update(_: number, d: number) { this.visualUpdate(d); if (!this.playing || this.paused) return; const l = this.run.level; Audio.setMusicPace(l); this.speed = Math.min(540, 215 + (l - 1) * 28 + this.run.score * 1.2); this.spawnDelay = Math.max(650, 1200 - (l - 1) * 55); for (const o of [...this.gates.getChildren()] as Gate[]) { o.y += this.speed * d / 1000; if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(this.lanes[o.lane!], o.y); if (o.y > 675 && !o.getData('checked')) { o.setData('checked', true); o.gold ? this.gold(o) : o.lane === this.lane ? this.ok(o) : this.miss(o); } if (o.y > 880) o.destroy(); } }
 
