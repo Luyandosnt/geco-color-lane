@@ -8,6 +8,8 @@ import { RunOnboardingController } from './RunOnboardingController';
 import { DEBUG_RESOURCES, GameplayBalanceConfig } from './GameplayBalanceConfig';
 import { PickupSpawnDirector, PickupType } from './PickupSpawnDirector';
 import { FlightFuelController, RestorationPowerController, RestorationProgressController } from './ResourceControllers';
+import { hyperButton, hyperIcon, hyperPanel } from '../ui/HyperCasualUI';
+import { preloadHyperCasualUI, UI_ASSETS, UIButtonVariant } from '../ui/HyperCasualUIAssets';
 
 type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean; pickupType?: PickupType };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
@@ -22,9 +24,9 @@ export class ColorLane extends Phaser.Scene {
   menu: Phaser.GameObjects.GameObject[] = []; inputs: HTMLInputElement[] = [];
   player!: Phaser.GameObjects.Rectangle; gates!: Phaser.GameObjects.Group;
   score!: Phaser.GameObjects.Text; streak!: Phaser.GameObjects.Text; lives!: Phaser.GameObjects.Text; level!: Phaser.GameObjects.Text;
-  fuelLabel!: Phaser.GameObjects.Text; fuelFill!: Phaser.GameObjects.Rectangle; fuelBar!: Phaser.GameObjects.Rectangle; restoreHud!: Phaser.GameObjects.Text; restoreBoost!: Phaser.GameObjects.Rectangle; worldHud!: Phaser.GameObjects.Text; debugResources!: Phaser.GameObjects.Text;
-  lifePips: Phaser.GameObjects.Polygon[] = [];
-  title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text;
+  fuelLabel!: Phaser.GameObjects.Text; fuelFill!: Phaser.GameObjects.Rectangle; fuelBar!: Phaser.GameObjects.Image; restoreHud!: Phaser.GameObjects.Text; restoreBoost!: Phaser.GameObjects.Rectangle; worldHud!: Phaser.GameObjects.Text; debugResources!: Phaser.GameObjects.Text;
+  lifePips: Phaser.GameObjects.Image[] = [];
+  title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text; pauseBg!: Phaser.GameObjects.Image; shellPanel!: Phaser.GameObjects.Image;
   version!: Phaser.GameObjects.Text;
   terrain!: TerrainRestorationManager; plane!: Phaser.GameObjects.Image;
   onboarding!: RunOnboardingController;
@@ -35,6 +37,7 @@ export class ColorLane extends Phaser.Scene {
 
   preload() {
     TerrainRestorationManager.preload(this);
+    preloadHyperCasualUI(this);
   }
 
   create() {
@@ -52,25 +55,23 @@ export class ColorLane extends Phaser.Scene {
       this.add.rectangle(4, 422, 8, 844, 0xf43f5e, 0),
       this.add.rectangle(386, 422, 8, 844, 0xf43f5e, 0)
     ].map(x => x.setDepth(29).setBlendMode(Phaser.BlendModes.ADD));
-    this.hudPanel(82, 45, 132, 72);
-    this.hudPanel(195, 45, 92, 58);
-    this.hudPanel(315, 45, 124, 72);
-    this.add.circle(25, 25, 8, 0x22c55e, .9).setDepth(32);
-    this.add.rectangle(25, 31, 9, 13, 0x22c55e, .9).setDepth(32);
+    this.add.image(195, 43, UI_ASSETS.panels.hud.key).setDisplaySize(378, 54).setDepth(30).setAlpha(.96);
+    hyperIcon(this, 25, 28, UI_ASSETS.icons.star.key, 24, 32);
     this.score = this.add.text(366, 14, '', { fontFamily: 'Arial', fontSize: '29px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
     this.lives = this.add.text(42, 50, '', { fontFamily: 'Arial', fontSize: '10px', color: '#94a3b8', fontStyle: 'bold' }).setDepth(32);
-    this.lifePips = [0, 1, 2].map(i => this.add.polygon(25 + i * 18, 59, [0, -8, 8, -4, 7, 5, 0, 10, -7, 5, -8, -4], 0x38bdf8, .88).setStrokeStyle(1, 0xffffff, .45).setDepth(32));
+    this.lifePips = [0, 1, 2].map(i => hyperIcon(this, 25 + i * 18, 59, UI_ASSETS.icons.badge.key, 18, 32));
     this.level = this.add.text(195, 24, '', { fontFamily: 'Arial', fontSize: '13px', color: '#e5e7eb', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
     this.streak = this.add.text(366, 48, '', { fontFamily: 'Arial', fontSize: '11px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
     this.fuelLabel = this.add.text(43, 18, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
-    this.fuelBar = this.add.rectangle(43, 35, 74, 10, 0x0f172a, .92).setOrigin(0, .5).setStrokeStyle(1, 0x475569, .9).setDepth(32);
+    this.fuelBar = this.add.image(80, 35, UI_ASSETS.panels.card.key).setDisplaySize(82, 22).setDepth(32);
     this.fuelFill = this.add.rectangle(45, 35, 70, 6, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
     this.restoreHud = this.add.text(195, 47, '', { fontFamily: 'Arial', fontSize: '10px', color: '#93c5fd', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
     this.restoreBoost = this.add.rectangle(165, 62, 60, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
     this.worldHud = this.add.text(366, 62, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(32);
     this.debugResources = this.add.text(12, 116, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
-    this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#e5e7eb', backgroundColor: '#0f172a', padding: { x: 20, y: 8 }, fontStyle: 'bold' }).setOrigin(.5).setDepth(60).setInteractive();
-    this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); this.tweens.add({ targets: this.pause, scale: .95, yoyo: true, duration: 70 }); if (this.playing) this.togglePause(); });
+    this.pauseBg = this.add.image(195, 805, UI_ASSETS.buttons.primary.key).setDisplaySize(130, 50).setDepth(59).setVisible(false);
+    this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#e5e7eb', padding: { x: 20, y: 8 }, fontStyle: 'bold', stroke: '#0f172a', strokeThickness: 3 }).setOrigin(.5).setDepth(60).setInteractive();
+    this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); this.tweens.add({ targets: [this.pause, this.pauseBg], scale: .95, yoyo: true, duration: 70 }); if (this.playing) this.togglePause(); });
     this.status = this.add.text(195, 150, '', { fontFamily: 'Arial', fontSize: '20px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 340 } }).setOrigin(.5).setDepth(70);
     this.player = this.add.rectangle(this.lanes[1], AIRCRAFT_Y, 64, 64, C[1]).setStrokeStyle(4, 0xffffff, .95).setDepth(10);
     this.plane = this.add.image(this.player.x, this.player.y, TerrainAssets.plane).setDisplaySize(92, 92).setDepth(11).setVisible(false);
@@ -87,9 +88,10 @@ export class ColorLane extends Phaser.Scene {
     });
     this.onboarding.create();
     this.overlay = this.add.rectangle(195, 422, 390, 844, 0x020617, .86).setDepth(45).setVisible(false);
+    this.shellPanel = hyperPanel(this, 195, 418, UI_ASSETS.panels.menu.key, 344, 49).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(14, 820, 'v0.1.16 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(14, 820, 'v0.1.17 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
       const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
@@ -107,21 +109,34 @@ export class ColorLane extends Phaser.Scene {
   clear() { this.menu.forEach(x => x.destroy()); this.menu = []; this.inputs.forEach(x => x.remove()); this.inputs = []; this.version.setVisible(false); }
   blur() { this.inputs.forEach(x => x.blur()); (document.activeElement as HTMLElement | null)?.blur(); window.scrollTo(0, 0); }
   btn(y: number, t: string, cb: () => void, w = 250) {
-    const bg = this.add.rectangle(195, y, w, 46, 0x1e293b, .98).setStrokeStyle(2, 0x475569, .8).setDepth(51).setInteractive();
-    const tx = this.add.text(195, y, t, { fontFamily: 'Arial', fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(.5).setDepth(52);
-    bg.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); this.tweens.add({ targets: [bg, tx], scale: .96, yoyo: true, duration: 65 }); cb(); });
-    this.menu.push(bg, tx);
+    const clean = t.replace(/[^\w\s]/g, '').trim().toUpperCase();
+    const variant = this.buttonVariant(clean);
+    const iconKey = this.buttonIcon(clean);
+    const noLabel = ['PLAY', 'LEADERBOARD', 'SHOP', 'SETTING', 'SETTINGS', 'RESUME', 'BACK'].some(x => clean === x);
+    const b = hyperButton(this, 195, y, { variant, iconKey, width: Math.min(Math.max(w, 150), 230), label: noLabel ? undefined : clean, noLabel, onClick: cb });
+    this.menu.push(b);
   }
-  hudPanel(x: number, y: number, w: number, h: number) {
-    const g = this.add.graphics().setDepth(30);
-    g.fillStyle(0x020617, .9);
-    g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-    g.lineStyle(1, 0x38bdf8, .2);
-    g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
-    g.fillStyle(0xffffff, .055);
-    g.fillRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, 13, 8);
+  buttonVariant(clean: string): UIButtonVariant {
+    if (clean.includes('PLAY') && !clean.includes('AGAIN')) return 'play';
+    if (clean.includes('LEADERBOARD')) return 'leaderboard';
+    if (clean === 'SHOP') return 'shop';
+    if (clean.includes('SETTING')) return 'settings';
+    if (clean.includes('RESUME')) return 'resume';
+    if (clean.includes('BACK') || clean.includes('HOME')) return clean.includes('HOME') ? 'primary' : 'back';
+    if (clean.includes('CREATE') || clean.includes('SIGN') || clean.includes('CONFIRM') || clean.includes('EQUIP') || clean.includes('UNLOCK')) return 'confirm';
+    if (clean.includes('AGAIN') || clean.includes('RETRY')) return 'retry';
+    return clean.includes('PLAY') ? 'gold' : 'primary';
   }
-  shell(on = true) { this.overlay.setVisible(on); this.title.setVisible(on); this.hint.setVisible(on); }
+  buttonIcon(clean: string) {
+    if (clean.includes('HOME')) return UI_ASSETS.icons.home.key;
+    if (clean.includes('ACCOUNT') || clean.includes('SIGN') || clean.includes('CREATE')) return UI_ASSETS.icons.profile.key;
+    if (clean.includes('SHOP')) return UI_ASSETS.icons.shop.key;
+    if (clean.includes('SETTING')) return UI_ASSETS.icons.settings.key;
+    if (clean.includes('HOW') || clean.includes('HELP')) return UI_ASSETS.icons.help.key;
+    if (clean.includes('RANK') || clean.includes('LEADERBOARD')) return UI_ASSETS.icons.leaderboard.key;
+    return undefined;
+  }
+  shell(on = true) { this.overlay.setVisible(on); this.shellPanel.setVisible(on); this.title.setVisible(on); this.hint.setVisible(on); }
   field(y: number, placeholder: string, type = 'text') {
     const el = document.createElement('input'); el.type = type; el.placeholder = placeholder; el.autocomplete = type === 'password' ? 'current-password' : type === 'email' ? 'email' : 'nickname';
     Object.assign(el.style, { position: 'fixed', left: '50%', top: `calc(50% + ${y - 422}px)`, transform: 'translate(-50%,-50%)', width: '260px', height: '44px', boxSizing: 'border-box', padding: '0 14px', border: '2px solid #475569', borderRadius: '5px', background: '#0f172a', color: '#fff', fontSize: '16px', zIndex: '9999', outline: 'none' });
@@ -131,7 +146,8 @@ export class ColorLane extends Phaser.Scene {
   home() {
     Audio.stopMusic();
     this.onboarding?.cancel();
-    this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText('');
+    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277);
+    this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false);
     this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
     this.title.setFontSize(48).setText('COLOR\nLANE');
     this.hint.setText('BEST ' + Core.data.highScore + '  •  ' + Core.data.coins + ' COINS\n' + (Online.user ? 'SIGNED IN: ' + Online.name() : 'PLAYING AS GUEST') + '\n\nWORLD RESTORATION\n' + Core.data.worldRestorationPercent.toFixed(1) + '%');
@@ -145,7 +161,7 @@ export class ColorLane extends Phaser.Scene {
 
   tutorial(step = 0) {
     this.onboarding?.cancel();
-    this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.shell(true);
+    this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false); this.shell(true);
     const pages = [
       ['HOW TO PLAY', 'MATCH THE COLOR\n\nA colored box falls down one of three lanes.\nMove your block into the SAME COLOR lane before it reaches the bottom.'],
       ['MOVE FAST', 'TAP A LANE\n\nTap the GREEN, BLUE or RED side of the screen to move instantly.\n\nWatch the next falling box — then choose its lane.'],
@@ -250,6 +266,7 @@ export class ColorLane extends Phaser.Scene {
     this.player.setAlpha(0);
     this.hud();
     this.pause.setText('Ⅱ PAUSE');
+    this.pauseBg.setVisible(true);
     this.cameras.main.fadeIn(220, 0, 0, 0);
     this.onboarding.start();
   }
@@ -267,7 +284,7 @@ export class ColorLane extends Phaser.Scene {
     const fuel = Math.round(this.displayedFuel);
     const fuelColor = fuel < 10 ? 0xf43f5e : fuel < 25 ? 0xf97316 : fuel < 50 ? 0xfacc15 : 0x22c55e;
     this.lives.setText('LIVES');
-    this.lifePips.forEach((pip, i) => pip.setVisible(true).setFillStyle(i < s.lives ? 0x38bdf8 : 0x334155, i < s.lives ? .9 : .55).setStrokeStyle(1, i < s.lives ? 0xffffff : 0x64748b, i < s.lives ? .48 : .25));
+    this.lifePips.forEach((pip, i) => pip.setVisible(true).setTint(i < s.lives ? 0x38bdf8 : 0x334155).setAlpha(i < s.lives ? .95 : .45));
     this.level.setText('LEVEL ' + s.level);
     this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : '');
     this.score.setText(String(s.score));
@@ -434,5 +451,5 @@ export class ColorLane extends Phaser.Scene {
   togglePause() { this.paused = !this.paused; this.paused ? this.onboarding.pause() : this.onboarding.resume(); this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
 
-  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m)); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('DISTANCE ' + Math.round(this.distance) + 'm\nSCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nFUEL CELLS ' + this.pickups.fuel + ' • WATER ' + this.pickups.water + ' • GOLD ' + this.pickups.gold + '\nRESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%\nWORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
+  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m)); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('DISTANCE ' + Math.round(this.distance) + 'm\nSCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nFUEL CELLS ' + this.pickups.fuel + ' • WATER ' + this.pickups.water + ' • GOLD ' + this.pickups.gold + '\nRESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%\nWORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.pauseBg.setVisible(false); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
 }
