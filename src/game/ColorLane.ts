@@ -5,19 +5,25 @@ import { Audio } from '../core/Audio';
 import { Online } from '../core/Online';
 import { AIRCRAFT_Y, PICKUP_EFFECT_Y, PICKUP_Y, TerrainAssets, TerrainRestorationManager } from './TerrainRestorationManager';
 import { RunOnboardingController } from './RunOnboardingController';
+import { DEBUG_RESOURCES, GameplayBalanceConfig } from './GameplayBalanceConfig';
+import { PickupSpawnDirector, PickupType } from './PickupSpawnDirector';
+import { FlightFuelController, RestorationPowerController, RestorationProgressController } from './ResourceControllers';
 
-type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean };
+type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean; pickupType?: PickupType };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
 const N = ['GREEN', 'BLUE', 'RED'];
 const G = 0xfacc15;
 
 export class ColorLane extends Phaser.Scene {
   lane = 1; speed = 220; playing = false; paused = false; spawnDelay = 1180;
-  visualTime = 0; nextOrbitSpark = 0;
+  visualTime = 0; nextOrbitSpark = 0; distance = 0; displayedFuel = 100;
   run = new RunSystem(); pattern: number[] = []; pi = 0;
+  flightFuel = new FlightFuelController(); restorePower = new RestorationPowerController(); restoreProgress = new RestorationProgressController();
+  spawnDirector!: PickupSpawnDirector; pickups = { fuel: 0, water: 0, gold: 0 };
   menu: Phaser.GameObjects.GameObject[] = []; inputs: HTMLInputElement[] = [];
   player!: Phaser.GameObjects.Rectangle; gates!: Phaser.GameObjects.Group;
   score!: Phaser.GameObjects.Text; streak!: Phaser.GameObjects.Text; lives!: Phaser.GameObjects.Text; level!: Phaser.GameObjects.Text;
+  fuelLabel!: Phaser.GameObjects.Text; fuelFill!: Phaser.GameObjects.Rectangle; fuelBar!: Phaser.GameObjects.Rectangle; restoreHud!: Phaser.GameObjects.Text; restoreBoost!: Phaser.GameObjects.Rectangle; worldHud!: Phaser.GameObjects.Text; debugResources!: Phaser.GameObjects.Text;
   title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text;
   version!: Phaser.GameObjects.Text;
   terrain!: TerrainRestorationManager; plane!: Phaser.GameObjects.Image;
@@ -51,6 +57,13 @@ export class ColorLane extends Phaser.Scene {
     this.lives = this.add.text(18, 48, '', { fontFamily: 'Arial', fontSize: '17px', color: '#fb7185' }).setDepth(31);
     this.level = this.add.text(195, 50, '', { fontFamily: 'Arial', fontSize: '13px', color: '#cbd5e1', fontStyle: 'bold' }).setOrigin(.5).setDepth(31);
     this.streak = this.add.text(370, 50, '', { fontFamily: 'Arial', fontSize: '12px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(31);
+    this.fuelLabel = this.add.text(18, 68, '', { fontFamily: 'Arial', fontSize: '10px', color: '#cbd5e1', fontStyle: 'bold' }).setDepth(31);
+    this.fuelBar = this.add.rectangle(72, 78, 92, 8, 0x0f172a, .92).setOrigin(0, .5).setStrokeStyle(1, 0x475569, .9).setDepth(31);
+    this.fuelFill = this.add.rectangle(73, 78, 90, 6, 0x22c55e, .95).setOrigin(0, .5).setDepth(32);
+    this.restoreHud = this.add.text(175, 68, '', { fontFamily: 'Arial', fontSize: '10px', color: '#93c5fd', fontStyle: 'bold' }).setDepth(31);
+    this.restoreBoost = this.add.rectangle(175, 82, 60, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(32);
+    this.worldHud = this.add.text(370, 68, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(31);
+    this.debugResources = this.add.text(12, 116, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
     this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#cbd5e1', backgroundColor: '#0f172a', padding: { x: 16, y: 7 }, fontStyle: 'bold' }).setOrigin(.5).setDepth(60).setInteractive();
     this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); if (this.playing) this.togglePause(); });
     this.status = this.add.text(195, 150, '', { fontFamily: 'Arial', fontSize: '20px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 340 } }).setOrigin(.5).setDepth(70);
@@ -59,18 +72,19 @@ export class ColorLane extends Phaser.Scene {
     this.aura = this.add.circle(this.player.x, this.player.y, 46, C[1], 0).setStrokeStyle(3, C[1], 0).setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     this.rays = [-18, 0, 18].map((off, i) => this.add.rectangle(this.player.x + off, this.player.y + 24, 5, 70 + i * 10, C[1], 0).setAngle(off * .35).setDepth(8).setBlendMode(Phaser.BlendModes.ADD));
     this.gates = this.add.group();
+    this.spawnDirector = new PickupSpawnDirector(this);
     this.onboarding = new RunOnboardingController(this, {
       lanes: this.lanes,
       gates: this.gates,
       moveToLane: lane => this.move(lane),
-      collectFuel: gate => this.ok(gate),
+      collectFuel: gate => this.onboardingFuel(gate),
       onComplete: () => this.beginNormalGameplay()
     });
     this.onboarding.create();
     this.overlay = this.add.rectangle(195, 422, 390, 844, 0x020617, .86).setDepth(45).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(14, 820, 'v0.1.14 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(14, 820, 'v0.1.15 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
       const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
@@ -104,9 +118,9 @@ export class ColorLane extends Phaser.Scene {
     Audio.stopMusic();
     this.onboarding?.cancel();
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText('');
-    this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.shell(true);
+    this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.debugResources.setVisible(false); this.shell(true);
     this.title.setFontSize(48).setText('COLOR\nLANE');
-    this.hint.setText('BEST ' + Core.data.highScore + '  •  ' + Core.data.coins + ' COINS\n' + (Online.user ? 'SIGNED IN: ' + Online.name() : 'PLAYING AS GUEST'));
+    this.hint.setText('BEST ' + Core.data.highScore + '  •  ' + Core.data.coins + ' COINS\n' + (Online.user ? 'SIGNED IN: ' + Online.name() : 'PLAYING AS GUEST') + '\n\nWORLD RESTORATION\n' + Core.data.worldRestorationPercent.toFixed(1) + '%');
     this.version.setVisible(true);
     this.btn(435, '▶  PLAY', () => Core.data.tutorialSeen ? this.start() : this.tutorial(0));
     this.btn(490, '🏆  LEADERBOARD', () => this.board());
@@ -201,6 +215,13 @@ export class ColorLane extends Phaser.Scene {
     this.tweens.killTweensOf(this.player);
     this.gates.clear(true, true);
     this.run.reset();
+    this.flightFuel.reset();
+    this.restorePower.reset();
+    this.restoreProgress.resetRun();
+    this.spawnDirector.reset();
+    this.pickups = { fuel: 0, water: 0, gold: 0 };
+    this.distance = 0;
+    this.displayedFuel = this.flightFuel.fuel;
     this.playing = true;
     this.paused = false;
     Audio.startMusic();
@@ -227,24 +248,48 @@ export class ColorLane extends Phaser.Scene {
     this.spawn();
     this.schedule();
   }
-  hud() { const s = this.run.snapshot(); this.lives.setText('♥'.repeat(s.lives)); this.level.setText('LEVEL ' + s.level); this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : ''); this.score.setText(String(s.score)); }
+  hud() {
+    const s = this.run.snapshot();
+    const fuel = Math.round(this.displayedFuel);
+    const fuelColor = fuel < 10 ? 0xf43f5e : fuel < 25 ? 0xf97316 : fuel < 50 ? 0xfacc15 : 0x22c55e;
+    this.lives.setText('♥'.repeat(s.lives));
+    this.level.setText('LEVEL ' + s.level);
+    this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : '');
+    this.score.setText(String(s.score));
+    this.fuelLabel.setText('FUEL ' + fuel + '%');
+    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 90 * fuel / 100;
+    this.fuelBar.setVisible(true);
+    this.restoreHud.setText('RESTORE ×' + this.restorePower.multiplier().toFixed(1));
+    this.restoreBoost.setVisible(true).width = 60 * this.restorePower.boostRatio();
+    this.worldHud.setText('WORLD\n' + this.restoreProgress.displayTotal.toFixed(1) + '%');
+  }
   schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
-  choose() { const l = this.run.level; if (this.pi >= this.pattern.length) { if (l < 3) this.pattern = [Phaser.Math.Between(0, 2)]; else { const a = Phaser.Math.Between(0, 2), b = (a + Phaser.Math.Between(1, 2)) % 3; this.pattern = l < 7 ? [a, b, a] : [a, (a + 1) % 3, (a + 2) % 3]; } this.pi = 0; } return this.pattern[this.pi++]; }
+  choose() { return this.spawnDirector.next(this.run.level, this.run.score).lane; }
   spawn() {
     if (this.gates.getLength() >= 3) return;
-    const gold = this.run.score >= 5 && Phaser.Math.Between(1, 13) === 1;
-    const l = gold ? Phaser.Math.Between(0, 2) : this.choose(), col = gold ? G : C[l];
-    const box = gold ? this.add.rectangle(this.lanes[l], -38, 58, 58, col).setStrokeStyle(6, G, .95) : this.add.image(this.lanes[l], -38, TerrainAssets.fuel).setDisplaySize(58, 58).setTint(col);
-    const children: Phaser.GameObjects.GameObject[] = [box];
-    if (gold) children.push(this.add.text(this.lanes[l], -38, '★', { fontFamily: 'Arial', fontSize: '22px', color: '#111827', fontStyle: 'bold' }).setOrigin(.5));
+    const pickup = this.spawnDirector.next(this.run.level, this.run.score);
+    const l = pickup.lane;
+    const children: Phaser.GameObjects.GameObject[] = [];
+    if (pickup.type === 'goldCore') {
+      const halo = this.add.circle(this.lanes[l], -38, 35, G, .14).setBlendMode(Phaser.BlendModes.ADD);
+      const core = this.add.circle(this.lanes[l], -38, 22, G, .95).setStrokeStyle(4, 0xffffff, .78).setBlendMode(Phaser.BlendModes.ADD);
+      children.push(halo, core);
+      this.tweens.add({ targets: [halo, core], scale: 1.12, angle: 180, yoyo: true, repeat: -1, duration: 380 });
+    } else if (pickup.type === 'water') {
+      const drop = this.add.circle(this.lanes[l], -38, 25, 0x38bdf8, .92).setScale(.82, 1.18).setStrokeStyle(4, 0xbff4ff, .75);
+      const shine = this.add.circle(this.lanes[l] - 8, -50, 5, 0xffffff, .72);
+      children.push(drop, shine);
+    } else {
+      children.push(this.add.image(this.lanes[l], -38, TerrainAssets.fuel).setDisplaySize(58, 58).setTint(C[l]));
+    }
     const g = this.add.container(0, 0, children) as Gate;
-    g.lane = l; g.gold = gold; g.setDepth(12).setScale(.7).setAlpha(0);
+    g.lane = l; g.pickupType = pickup.type; g.gold = pickup.type === 'goldCore'; g.setDepth(12).setScale(.7).setAlpha(0);
     this.tweens.add({ targets: g, scale: 1, alpha: 1, duration: 180, ease: 'Back.out' });
-    if (gold) this.tweens.add({ targets: box, scale: 1.12, yoyo: true, repeat: -1, duration: 280 });
     this.gates.add(g);
   }
   visualUpdate(d: number) {
     this.visualTime += d;
+    this.restoreProgress.updateDisplay();
     const onboardingActive = this.onboarding?.isActive();
     const terrainSpeed = onboardingActive ? 0 : this.speed;
     this.terrain.update(terrainSpeed, this.player.x, this.playing, this.paused || onboardingActive || (this.onboarding?.shouldFreezeWorld() ?? false), d);
@@ -263,7 +308,49 @@ export class ColorLane extends Phaser.Scene {
     this.dangerEdges.forEach(e => e.setAlpha(Math.max(0, dangerAlpha)));
     this.player.setAlpha(0);
   }
-  update(_: number, d: number) { this.visualUpdate(d); if (!this.playing || this.paused) return; if (this.onboarding.isActive()) { this.onboarding.update(d); return; } const l = this.run.level; Audio.setMusicPace(l); this.speed = Math.min(540, 215 + (l - 1) * 28 + this.run.score * 1.2); this.spawnDelay = Math.max(650, 1200 - (l - 1) * 55); for (const o of [...this.gates.getChildren()] as Gate[]) { o.y += this.speed * d / 1000; if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(this.lanes[o.lane!], o.y); if (o.y > PICKUP_Y && !o.getData('checked')) { o.setData('checked', true); o.gold ? this.gold(o) : o.lane === this.lane ? this.ok(o) : this.miss(o); } if (o.y > 880) o.destroy(); } }
+  update(_: number, d: number) {
+    this.visualUpdate(d);
+    if (!this.playing || this.paused) return;
+    if (this.onboarding.isActive()) {
+      this.onboarding.update(d);
+      return;
+    }
+    const l = this.run.level;
+    Audio.setMusicPace(l);
+    this.restorePower.update(d);
+    this.speed = Math.min(540, 215 + (l - 1) * 28 + this.run.score * 1.2);
+    this.spawnDelay = Math.max(650, 1200 - (l - 1) * 55);
+    this.distance += this.speed * d / 1000;
+    const multiplier = this.restorePower.multiplier();
+    this.restoreProgress.add((GameplayBalanceConfig.restoration.passivePerSecond * d / 1000 + this.speed * d / 1000 * GameplayBalanceConfig.restoration.distancePerPixel) * multiplier);
+    this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m));
+    this.displayedFuel += (this.flightFuel.fuel - this.displayedFuel) * .12;
+    this.terrain.setRestorationPower(multiplier, this.restorePower.surgeMs > 0 ? this.restorePower.boostRatio() : 0);
+    for (const o of [...this.gates.getChildren()] as Gate[]) {
+      o.y += this.speed * d / 1000;
+      if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(this.lanes[o.lane!], o.y);
+      if (o.y > PICKUP_Y && !o.getData('checked')) {
+        o.setData('checked', true);
+        this.resolvePickup(o);
+      }
+      if (o.y > 880) o.destroy();
+    }
+    if (DEBUG_RESOURCES) this.debugResources.setVisible(true).setText('Fuel ' + Math.round(this.flightFuel.fuel) + '\nWater ' + Math.ceil(this.restorePower.waterMs / 1000) + 's\nSurge ' + Math.ceil(this.restorePower.surgeMs / 1000) + 's\nRun +' + this.restoreProgress.runGain.toFixed(2) + '%\nTotal ' + Core.data.worldRestorationPercent.toFixed(2) + '%');
+    else this.debugResources.setVisible(false);
+    this.hud();
+  }
+
+  resolvePickup(o: Gate) {
+    const type = o.pickupType || 'fuel';
+    const matched = o.lane === this.lane;
+    if (!matched) {
+      type === 'fuel' ? this.miss(o) : o.destroy();
+      return;
+    }
+    if (type === 'water') this.water(o);
+    else if (type === 'goldCore') this.gold(o);
+    else this.ok(o);
+  }
 
   spark(x: number, y: number) { const q = this.add.circle(x + Phaser.Math.Between(-22, 22), y + Phaser.Math.Between(-12, 12), Phaser.Math.Between(1, 3), G, .8).setDepth(8); this.tweens.add({ targets: q, y: y + 30, alpha: 0, scale: 0, duration: 240, onComplete: () => q.destroy() }); }
   streakFx(s: number) {
@@ -291,6 +378,25 @@ export class ColorLane extends Phaser.Scene {
     this.cameras.main.rotateTo(Phaser.Math.FloatBetween(-.025, .025), 90, false, 'Sine.easeOut');
     this.time.delayedCall(110, () => { this.cameras.main.zoomTo(1, 180); this.cameras.main.rotateTo(0, 180, false, 'Sine.easeInOut'); });
   }
+  surgeFx(x: number) {
+    this.jackpotFx(x);
+    const ring = this.add.circle(this.player.x, this.player.y + 12, 36, 0x38bdf8, .04).setStrokeStyle(8, 0xfacc15, .85).setDepth(23).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: ring, scale: 6.8, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    for (let i = 0; i < 30; i++) {
+      const col = [0xfacc15, 0x22c55e, 0x38bdf8][i % 3];
+      const q = this.add.circle(this.player.x, this.player.y, Phaser.Math.Between(2, 4), col, .85).setDepth(24).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: q, x: this.player.x + Phaser.Math.Between(-180, 180), y: this.player.y + Phaser.Math.Between(-150, 65), alpha: 0, scale: .25, duration: Phaser.Math.Between(340, 620), ease: 'Sine.easeOut', onComplete: () => q.destroy() });
+    }
+  }
+  floatText(t: string, x: number, col: number) {
+    const txt = this.add.text(x, PICKUP_EFFECT_Y - 28, t, { fontFamily: 'Arial', fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(.5).setDepth(28).setTint(col);
+    this.tweens.add({ targets: txt, y: txt.y - 35, alpha: 0, duration: 460, ease: 'Sine.easeOut', onComplete: () => txt.destroy() });
+  }
+  milestoneFx(milestone: number) {
+    Audio.milestone();
+    this.flash('WORLD RESTORATION: ' + milestone + '%', 720);
+    this.tweens.add({ targets: this.worldHud, scale: 1.25, yoyo: true, duration: 180 });
+  }
   burst(x: number, col: number, n = 18) {
     const flash = this.add.circle(x, PICKUP_EFFECT_Y, 24, 0xffffff, .32).setDepth(22).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: flash, alpha: 0, scale: 1.9, duration: 120, ease: 'Sine.easeOut', onComplete: () => flash.destroy() });
@@ -304,12 +410,14 @@ export class ColorLane extends Phaser.Scene {
       this.tweens.add({ targets: q, x: x + Math.cos(a) * r, y: PICKUP_EFFECT_Y + Math.sin(a) * r, alpha: 0, scale: .25, duration: Phaser.Math.Between(170, 290), ease: 'Sine.easeOut', onComplete: () => q.destroy() });
     }
   }
-  ok(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); const r = this.run.catch(); Audio.catch(); const s = this.run.streak, big = r.bonus || s >= 4; this.burst(x, C[this.lane], r.bonus ? 24 : s >= 3 ? 20 : 16); this.streakFx(s); this.tweens.add({ targets: this.player, scaleX: r.bonus ? 1.38 : 1.17, scaleY: r.bonus ? .75 : .89, yoyo: true, duration: r.bonus ? 100 : 60 }); if (r.bonus) { this.cameras.main.flash(75, 120, 255, 170, false); this.flash('GREAT STREAK!', 540); } else if (s === 4) this.flash('ON FIRE!', 380); else if (s === 3) this.flash('GREAT CATCH!', 300); else if (s === 2) this.flash('NICE!', 220); else if (Phaser.Math.Between(1, 4) === 1) this.flash('GOOD CATCH!', 170); if (big) this.cameras.main.zoomTo(1.016, 80); if (big) this.time.delayedCall(90, () => this.cameras.main.zoomTo(1, 130)); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
-  gold(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.run.score++; this.run.coins += 5; this.run.level = Math.floor(this.run.score / 10) + 1; Audio.gold(); this.jackpotFx(x); this.flash('JACKPOT!', 500); this.hud(); }
+  ok(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.flightFuel.addFuel(); this.pickups.fuel++; this.restoreProgress.add(GameplayBalanceConfig.restoration.fuelCollect * this.restorePower.multiplier()); const r = this.run.catch(); Audio.catch(); this.floatText('+FUEL', x, 0x22c55e); this.tweens.add({ targets: [this.fuelFill, this.fuelBar], scaleY: 1.55, yoyo: true, duration: 95 }); const s = this.run.streak, big = r.bonus || s >= 4; this.burst(x, C[this.lane], r.bonus ? 24 : s >= 3 ? 20 : 16); this.streakFx(s); this.tweens.add({ targets: this.player, scaleX: r.bonus ? 1.38 : 1.17, scaleY: r.bonus ? .75 : .89, yoyo: true, duration: r.bonus ? 100 : 60 }); if (r.bonus) { this.cameras.main.flash(75, 120, 255, 170, false); this.flash('GREAT STREAK!', 540); } else if (s === 4) this.flash('ON FIRE!', 380); else if (s === 3) this.flash('GREAT CATCH!', 300); else if (s === 2) this.flash('NICE!', 220); else if (Phaser.Math.Between(1, 4) === 1) this.flash('GOOD CATCH!', 170); if (big) this.cameras.main.zoomTo(1.016, 80); if (big) this.time.delayedCall(90, () => this.cameras.main.zoomTo(1, 130)); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
+  onboardingFuel(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.fuel++; const r = this.run.catch(); Audio.catch(); this.floatText('+FUEL', x, 0x22c55e); this.burst(x, C[this.lane], 16); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
+  water(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.water++; this.restorePower.activateWater(); this.restoreProgress.add(GameplayBalanceConfig.restoration.waterCollect); this.run.score++; this.run.streak++; this.run.level = Math.floor(this.run.score / 10) + 1; Audio.water(); this.floatText('RESTORE BOOST', x, 0x38bdf8); this.burst(x, 0x38bdf8, 18); this.cameras.main.flash(70, 80, 220, 255, false); this.hud(); }
+  gold(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.gold++; this.run.score++; this.run.coins += 5; this.run.level = Math.floor(this.run.score / 10) + 1; this.restorePower.activateSurge(); this.restoreProgress.add(Phaser.Math.FloatBetween(GameplayBalanceConfig.restoration.goldInstantMin, GameplayBalanceConfig.restoration.goldInstantMax)); Audio.surge(); this.surgeFx(x); this.flash('RESTORATION SURGE!', 650); this.hud(); }
   levelFx() { const t = this.add.text(195, 390, 'LEVEL ' + this.run.level + '!\nKEEP GOING!', { align: 'center', fontFamily: 'Arial', fontSize: '38px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(.5).setDepth(35).setAlpha(0).setScale(.5); const ring = this.add.circle(this.player.x, this.player.y, 28, 0xffffff, .05).setStrokeStyle(5, 0xffffff, .8).setDepth(24).setBlendMode(Phaser.BlendModes.ADD); const glow = this.add.rectangle(195, 422, 390, 844, C[this.lane], .06).setDepth(3).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: ring, scale: 7, alpha: 0, duration: 420, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() }); this.tweens.add({ targets: glow, alpha: 0, duration: 450, onComplete: () => glow.destroy() }); this.tweens.add({ targets: this.player, y: this.player.y - 12, yoyo: true, duration: 120, ease: 'Sine.easeOut' }); for (let i = 0; i < 18; i++) { const q = this.add.rectangle(this.player.x, this.player.y, 3, 8, C[i % 3], .86).setDepth(24).setAngle(Phaser.Math.Between(0, 180)).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: q, x: this.player.x + Phaser.Math.Between(-120, 120), y: this.player.y + Phaser.Math.Between(-95, 45), alpha: 0, scale: .3, duration: Phaser.Math.Between(320, 520), ease: 'Sine.easeOut', onComplete: () => q.destroy() }); } this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 180, yoyo: true, hold: 180, onComplete: () => t.destroy() }); this.cameras.main.zoomTo(1.025, 90); this.time.delayedCall(100, () => this.cameras.main.zoomTo(1, 140)); }
-  miss(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); const dead = this.run.miss(); Audio.miss(); const warning = dead ? 'FIGHT OVER' : this.run.lives === 1 ? 'LAST FIGHT!' : this.run.lives === 2 ? 'DANGER ZONE!' : 'LIFE LOST!'; this.cameras.main.shake(dead ? 260 : this.run.lives === 1 ? 205 : 125, dead ? .02 : this.run.lives === 1 ? .015 : .009); this.cameras.main.flash(dead ? 130 : this.run.lives === 1 ? 90 : 60, 255, 35, 60, false); const slash = this.add.rectangle(x, PICKUP_EFFECT_Y, 85, 8, 0xffffff, .9).setAngle(-35).setDepth(25); this.tweens.add({ targets: slash, alpha: 0, scaleX: 1.8, duration: 180, onComplete: () => slash.destroy() }); if (!dead && this.run.lives === 1) { this.danger.setAlpha(.055); this.tweens.add({ targets: this.danger, alpha: .13, yoyo: true, repeat: -1, duration: 520 }); } else if (!dead && this.run.lives === 2) this.danger.setAlpha(.025); this.flash(warning, dead ? 700 : this.run.lives === 1 ? 560 : 420); this.hud(); if (dead) { Audio.stopMusic(); this.danger.setAlpha(.2); this.time.delayedCall(120, () => this.cameras.main.shake(280, .022)); this.playing = false; this.time.delayedCall(650, () => this.over()); } }
+  miss(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.run.streak = 0; const lifeLost = this.flightFuel.missFuel(); const dead = lifeLost ? this.run.miss() : false; Audio.miss(); const warning = dead ? 'FIGHT OVER' : lifeLost ? (this.run.lives === 1 ? 'LAST FIGHT!' : this.run.lives === 2 ? 'DANGER ZONE!' : 'LIFE LOST!') : 'FUEL LOW!'; this.cameras.main.shake(dead ? 260 : lifeLost ? 135 : 80, dead ? .02 : lifeLost ? .011 : .006); this.cameras.main.flash(dead ? 130 : lifeLost ? 90 : 45, 255, 35, 60, false); const slash = this.add.rectangle(x, PICKUP_EFFECT_Y, 85, 8, 0xffffff, .9).setAngle(-35).setDepth(25); this.tweens.add({ targets: slash, alpha: 0, scaleX: 1.8, duration: 180, onComplete: () => slash.destroy() }); this.tweens.add({ targets: [this.fuelFill, this.fuelBar], x: '+=5', yoyo: true, repeat: 2, duration: 38 }); if (!dead && this.run.lives === 1) { this.danger.setAlpha(.055); this.tweens.add({ targets: this.danger, alpha: .13, yoyo: true, repeat: -1, duration: 520 }); } else if (!dead && this.run.lives === 2) this.danger.setAlpha(.025); this.flash(warning, dead ? 700 : lifeLost ? 560 : 260); this.hud(); if (dead) { Audio.stopMusic(); this.danger.setAlpha(.2); this.time.delayedCall(120, () => this.cameras.main.shake(280, .022)); this.playing = false; this.time.delayedCall(650, () => this.over()); } }
   togglePause() { this.paused = !this.paused; this.paused ? this.onboarding.pause() : this.onboarding.resume(); this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
 
-  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('SCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nLEVEL ' + s.level + ' • +' + s.coins + ' COINS\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
+  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m)); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setText('DISTANCE ' + Math.round(this.distance) + 'm\nSCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nFUEL CELLS ' + this.pickups.fuel + ' • WATER ' + this.pickups.water + ' • GOLD ' + this.pickups.gold + '\nRESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%\nWORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.btn(545, '▶ PLAY AGAIN', () => this.start()); this.btn(600, '🏆 LEADERBOARD', () => this.board()); this.btn(655, '⌂ HOME', () => this.home()); }
 }

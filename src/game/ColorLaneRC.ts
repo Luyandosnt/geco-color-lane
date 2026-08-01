@@ -44,6 +44,7 @@ export class ColorLaneRC extends ColorLane {
     if(!this.playing)return;
     if(!this.paused){
       Audio.pauseMusic();
+      this.onboarding.pause();
       this.paused=true;
       this.overlay.setVisible(true).setAlpha(.9);
       this.shell(true);

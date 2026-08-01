@@ -24,7 +24,10 @@ export const Audio = {
 
   move() { this.tone(260, .025); },
   catch() { this.tone(620, .05); },
+  water() { this.tone(740, .05); setTimeout(() => this.tone(1040, .06), 55); },
   gold() { this.tone(880, .08); setTimeout(() => this.tone(1180, .1), 70); },
+  surge() { this.tone(520, .06); setTimeout(() => this.tone(900, .08), 55); setTimeout(() => this.tone(1320, .11), 120); },
+  milestone() { this.tone(680, .06); setTimeout(() => this.tone(920, .07), 70); },
   miss() { this.tone(120, .12, 'sawtooth'); },
   level() { this.tone(520, .06); setTimeout(() => this.tone(780, .08), 65); },
 

@@ -51,6 +51,8 @@ export class TerrainRestorationManager {
   private frontierOffset = 46;
   private time = 0;
   private coverageTotal = 0;
+  private restorationPower = 1;
+  private surgeBoost = 0;
   private debug!: Phaser.GameObjects.Text;
   private waveGlow!: Phaser.GameObjects.Graphics;
 
@@ -76,6 +78,11 @@ export class TerrainRestorationManager {
       backgroundColor: 'rgba(2,6,23,.42)',
       padding: { x: 6, y: 4 }
     }).setDepth(91).setVisible(false);
+  }
+
+  setRestorationPower(multiplier: number, surgeBoost = 0) {
+    this.restorationPower = Phaser.Math.Clamp(multiplier, 1, 3);
+    this.surgeBoost = Phaser.Math.Clamp(surgeBoost, 0, 1);
   }
 
   update(scrollSpeed: number, activeLaneX: number, playing: boolean, paused: boolean, delta: number) {
@@ -141,19 +148,22 @@ export class TerrainRestorationManager {
   private reveal(chunk: TerrainChunk, x: number, revealY: number) {
     const localY = revealY - chunk.y;
     if (localY < -70 || localY > this.chunkHeight + 80) return;
+    const boost = this.restorationPower;
+    const surge = this.surgeBoost;
 
     const ctx = chunk.corruptedTexture.getContext();
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
-    this.eraseSoftEllipse(ctx, x, localY, 92, 48, .9);
-    this.eraseSoftEllipse(ctx, x - 44 + Math.sin(this.time / 230) * 10, localY + 14, 68, 34, .62);
-    this.eraseSoftEllipse(ctx, x + 43 + Math.cos(this.time / 260) * 10, localY + 18, 64, 32, .58);
-    this.eraseSoftEllipse(ctx, x + Math.sin(this.time / 190) * 24, localY + 42, 114, 42, .44);
+    this.eraseSoftEllipse(ctx, x, localY, 92 * boost, 48 * boost, .9);
+    this.eraseSoftEllipse(ctx, x - 44 + Math.sin(this.time / 230) * 10, localY + 14, 68 * boost, 34 * boost, .62);
+    this.eraseSoftEllipse(ctx, x + 43 + Math.cos(this.time / 260) * 10, localY + 18, 64 * boost, 32 * boost, .58);
+    this.eraseSoftEllipse(ctx, x + Math.sin(this.time / 190) * 24, localY + 42, 114 * boost, 42 * boost, .44);
+    if (surge > 0) this.eraseSoftEllipse(ctx, x, localY + 12, 165 + surge * 90, 118 + surge * 58, .68);
     ctx.restore();
     chunk.corruptedTexture.refresh();
 
     chunk.stamps++;
-    chunk.restoredCoverage = Math.min(100, chunk.stamps * 2.1);
+    chunk.restoredCoverage = Math.min(100, chunk.stamps * 2.1 * boost);
   }
 
   private eraseSoftEllipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, alpha: number) {
@@ -183,11 +193,12 @@ export class TerrainRestorationManager {
     this.waveGlow.clear();
     const colors = [0x38bdf8, 0xfacc15, 0x22c55e];
     colors.forEach((color, pass) => {
-      this.waveGlow.lineStyle(pass === 0 ? 5 : 2, color, pass === 0 ? .1 : .18);
+      this.waveGlow.lineStyle(pass === 0 ? 5 : 2, color, pass === 0 ? .1 * this.restorationPower : .18 * this.restorationPower);
       this.waveGlow.beginPath();
       for (let i = 0; i <= 14; i++) {
         const t = i / 14;
-        const px = x - 106 + t * 212;
+        const width = 212 * (1 + (this.restorationPower - 1) * .45);
+        const px = x - width / 2 + t * width;
         const py = y + Math.sin(t * Math.PI * 2 + this.time / 260 + pass) * 8 + Math.sin(t * Math.PI + this.time / 420) * 11;
         i ? this.waveGlow.lineTo(px, py) : this.waveGlow.moveTo(px, py);
       }
