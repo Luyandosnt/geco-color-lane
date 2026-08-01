@@ -11,7 +11,6 @@ import { FlightFuelController, RestorationPowerController, RestorationProgressCo
 
 type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean; pickupType?: PickupType };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
-const N = ['GREEN', 'BLUE', 'RED'];
 const G = 0xfacc15;
 
 export class ColorLane extends Phaser.Scene {
@@ -24,6 +23,7 @@ export class ColorLane extends Phaser.Scene {
   player!: Phaser.GameObjects.Rectangle; gates!: Phaser.GameObjects.Group;
   score!: Phaser.GameObjects.Text; streak!: Phaser.GameObjects.Text; lives!: Phaser.GameObjects.Text; level!: Phaser.GameObjects.Text;
   fuelLabel!: Phaser.GameObjects.Text; fuelFill!: Phaser.GameObjects.Rectangle; fuelBar!: Phaser.GameObjects.Rectangle; restoreHud!: Phaser.GameObjects.Text; restoreBoost!: Phaser.GameObjects.Rectangle; worldHud!: Phaser.GameObjects.Text; debugResources!: Phaser.GameObjects.Text;
+  lifePips: Phaser.GameObjects.Polygon[] = [];
   title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text;
   version!: Phaser.GameObjects.Text;
   terrain!: TerrainRestorationManager; plane!: Phaser.GameObjects.Image;
@@ -41,8 +41,9 @@ export class ColorLane extends Phaser.Scene {
     this.terrain = new TerrainRestorationManager(this);
     this.terrain.create();
     this.lanes.forEach((x, i) => {
-      this.add.rectangle(x, 430, 2, 720, 0xffffff, .09);
-      this.add.text(x, 92, N[i], { fontFamily: 'Arial', fontSize: '12px', color: '#94a3b8', fontStyle: 'bold' }).setOrigin(.5);
+      this.add.rectangle(x, 450, 108, 720, C[i], .035).setDepth(5).setBlendMode(Phaser.BlendModes.ADD);
+      this.add.rectangle(x, 450, 2, 720, C[i], .18).setDepth(6).setBlendMode(Phaser.BlendModes.ADD);
+      this.add.circle(x, 104, 5, C[i], .8).setDepth(7).setBlendMode(Phaser.BlendModes.ADD);
     });
     this.danger = this.add.rectangle(195, 422, 390, 844, 0xf43f5e, 0).setDepth(4);
     this.dangerEdges = [
@@ -51,21 +52,25 @@ export class ColorLane extends Phaser.Scene {
       this.add.rectangle(4, 422, 8, 844, 0xf43f5e, 0),
       this.add.rectangle(386, 422, 8, 844, 0xf43f5e, 0)
     ].map(x => x.setDepth(29).setBlendMode(Phaser.BlendModes.ADD));
-    this.add.rectangle(195, 38, 370, 58, 0x020617, .96).setStrokeStyle(1, 0x334155, .9).setDepth(30);
-    this.add.text(18, 18, 'GECO', { fontFamily: 'Arial', fontSize: '13px', color: '#94a3b8', fontStyle: 'bold' }).setDepth(31);
-    this.score = this.add.text(370, 13, '', { fontFamily: 'Arial', fontSize: '31px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(31);
-    this.lives = this.add.text(18, 48, '', { fontFamily: 'Arial', fontSize: '17px', color: '#fb7185' }).setDepth(31);
-    this.level = this.add.text(195, 50, '', { fontFamily: 'Arial', fontSize: '13px', color: '#cbd5e1', fontStyle: 'bold' }).setOrigin(.5).setDepth(31);
-    this.streak = this.add.text(370, 50, '', { fontFamily: 'Arial', fontSize: '12px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(31);
-    this.fuelLabel = this.add.text(18, 68, '', { fontFamily: 'Arial', fontSize: '10px', color: '#cbd5e1', fontStyle: 'bold' }).setDepth(31);
-    this.fuelBar = this.add.rectangle(72, 78, 92, 8, 0x0f172a, .92).setOrigin(0, .5).setStrokeStyle(1, 0x475569, .9).setDepth(31);
-    this.fuelFill = this.add.rectangle(73, 78, 90, 6, 0x22c55e, .95).setOrigin(0, .5).setDepth(32);
-    this.restoreHud = this.add.text(175, 68, '', { fontFamily: 'Arial', fontSize: '10px', color: '#93c5fd', fontStyle: 'bold' }).setDepth(31);
-    this.restoreBoost = this.add.rectangle(175, 82, 60, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(32);
-    this.worldHud = this.add.text(370, 68, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(31);
+    this.hudPanel(82, 45, 132, 72);
+    this.hudPanel(195, 45, 92, 58);
+    this.hudPanel(315, 45, 124, 72);
+    this.add.circle(25, 25, 8, 0x22c55e, .9).setDepth(32);
+    this.add.rectangle(25, 31, 9, 13, 0x22c55e, .9).setDepth(32);
+    this.score = this.add.text(366, 14, '', { fontFamily: 'Arial', fontSize: '29px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
+    this.lives = this.add.text(42, 50, '', { fontFamily: 'Arial', fontSize: '10px', color: '#94a3b8', fontStyle: 'bold' }).setDepth(32);
+    this.lifePips = [0, 1, 2].map(i => this.add.polygon(25 + i * 18, 59, [0, -8, 8, -4, 7, 5, 0, 10, -7, 5, -8, -4], 0x38bdf8, .88).setStrokeStyle(1, 0xffffff, .45).setDepth(32));
+    this.level = this.add.text(195, 24, '', { fontFamily: 'Arial', fontSize: '13px', color: '#e5e7eb', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
+    this.streak = this.add.text(366, 48, '', { fontFamily: 'Arial', fontSize: '11px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
+    this.fuelLabel = this.add.text(43, 18, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
+    this.fuelBar = this.add.rectangle(43, 35, 74, 10, 0x0f172a, .92).setOrigin(0, .5).setStrokeStyle(1, 0x475569, .9).setDepth(32);
+    this.fuelFill = this.add.rectangle(45, 35, 70, 6, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
+    this.restoreHud = this.add.text(195, 47, '', { fontFamily: 'Arial', fontSize: '10px', color: '#93c5fd', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
+    this.restoreBoost = this.add.rectangle(165, 62, 60, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
+    this.worldHud = this.add.text(366, 62, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(32);
     this.debugResources = this.add.text(12, 116, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
-    this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#cbd5e1', backgroundColor: '#0f172a', padding: { x: 16, y: 7 }, fontStyle: 'bold' }).setOrigin(.5).setDepth(60).setInteractive();
-    this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); if (this.playing) this.togglePause(); });
+    this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#e5e7eb', backgroundColor: '#0f172a', padding: { x: 20, y: 8 }, fontStyle: 'bold' }).setOrigin(.5).setDepth(60).setInteractive();
+    this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); this.tweens.add({ targets: this.pause, scale: .95, yoyo: true, duration: 70 }); if (this.playing) this.togglePause(); });
     this.status = this.add.text(195, 150, '', { fontFamily: 'Arial', fontSize: '20px', color: '#fff', fontStyle: 'bold', align: 'center', wordWrap: { width: 340 } }).setOrigin(.5).setDepth(70);
     this.player = this.add.rectangle(this.lanes[1], AIRCRAFT_Y, 64, 64, C[1]).setStrokeStyle(4, 0xffffff, .95).setDepth(10);
     this.plane = this.add.image(this.player.x, this.player.y, TerrainAssets.plane).setDisplaySize(92, 92).setDepth(11).setVisible(false);
@@ -84,7 +89,7 @@ export class ColorLane extends Phaser.Scene {
     this.overlay = this.add.rectangle(195, 422, 390, 844, 0x020617, .86).setDepth(45).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(14, 820, 'v0.1.15 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(14, 820, 'v0.1.16 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
       const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
@@ -107,6 +112,15 @@ export class ColorLane extends Phaser.Scene {
     bg.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); this.tweens.add({ targets: [bg, tx], scale: .96, yoyo: true, duration: 65 }); cb(); });
     this.menu.push(bg, tx);
   }
+  hudPanel(x: number, y: number, w: number, h: number) {
+    const g = this.add.graphics().setDepth(30);
+    g.fillStyle(0x020617, .9);
+    g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    g.lineStyle(1, 0x38bdf8, .2);
+    g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    g.fillStyle(0xffffff, .055);
+    g.fillRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, 13, 8);
+  }
   shell(on = true) { this.overlay.setVisible(on); this.title.setVisible(on); this.hint.setVisible(on); }
   field(y: number, placeholder: string, type = 'text') {
     const el = document.createElement('input'); el.type = type; el.placeholder = placeholder; el.autocomplete = type === 'password' ? 'current-password' : type === 'email' ? 'email' : 'nickname';
@@ -118,7 +132,7 @@ export class ColorLane extends Phaser.Scene {
     Audio.stopMusic();
     this.onboarding?.cancel();
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText('');
-    this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.debugResources.setVisible(false); this.shell(true);
+    this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
     this.title.setFontSize(48).setText('COLOR\nLANE');
     this.hint.setText('BEST ' + Core.data.highScore + '  •  ' + Core.data.coins + ' COINS\n' + (Online.user ? 'SIGNED IN: ' + Online.name() : 'PLAYING AS GUEST') + '\n\nWORLD RESTORATION\n' + Core.data.worldRestorationPercent.toFixed(1) + '%');
     this.version.setVisible(true);
@@ -252,12 +266,13 @@ export class ColorLane extends Phaser.Scene {
     const s = this.run.snapshot();
     const fuel = Math.round(this.displayedFuel);
     const fuelColor = fuel < 10 ? 0xf43f5e : fuel < 25 ? 0xf97316 : fuel < 50 ? 0xfacc15 : 0x22c55e;
-    this.lives.setText('♥'.repeat(s.lives));
+    this.lives.setText('LIVES');
+    this.lifePips.forEach((pip, i) => pip.setVisible(true).setFillStyle(i < s.lives ? 0x38bdf8 : 0x334155, i < s.lives ? .9 : .55).setStrokeStyle(1, i < s.lives ? 0xffffff : 0x64748b, i < s.lives ? .48 : .25));
     this.level.setText('LEVEL ' + s.level);
     this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : '');
     this.score.setText(String(s.score));
     this.fuelLabel.setText('FUEL ' + fuel + '%');
-    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 90 * fuel / 100;
+    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 70 * fuel / 100;
     this.fuelBar.setVisible(true);
     this.restoreHud.setText('RESTORE ×' + this.restorePower.multiplier().toFixed(1));
     this.restoreBoost.setVisible(true).width = 60 * this.restorePower.boostRatio();
