@@ -143,7 +143,7 @@ export class BackgroundEvolutionManager {
     this.horizon = this.scene.add.rectangle(195, 570, 390, 430, this.state.horizon, .045).setBlendMode(Phaser.BlendModes.ADD);
     this.sunGlow = this.scene.add.circle(88, 170, 130, this.state.glow, .055).setBlendMode(Phaser.BlendModes.ADD);
     this.lensGlow = this.scene.add.circle(280, 300, 90, this.state.accent, .025).setBlendMode(Phaser.BlendModes.ADD);
-    this.grid = this.scene.add.grid(195, 486, 390, 620, 39, 52, 0x000000, 0, this.state.glow, 0).setBlendMode(Phaser.BlendModes.ADD);
+    this.grid = this.scene.add.grid(195, 486, 390, 620, 39, 52, 0x000000, 0, this.state.glow, .08).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
     this.far.add([this.sky, this.horizon, this.sunGlow, this.lensGlow, this.grid]);
 
     this.lanes.forEach((x, i) => {
@@ -230,7 +230,7 @@ export class BackgroundEvolutionManager {
     this.lensGlow.setFillStyle(this.state.accent, .018 + this.energy * .045);
     this.lensGlow.x = 270 + Math.sin(this.time / 5100) * 22;
     this.lensGlow.y = 280 + Math.cos(this.time / 6200) * 16;
-    this.grid.setOutlineStyle(this.state.glow, this.targetEra === 3 ? .035 + this.energy * .045 : this.targetEra === 2 ? .012 + this.energy * .018 : 0);
+    this.grid.setAlpha(this.targetEra === 3 ? .28 + this.energy * .28 : this.targetEra === 2 ? .08 + this.energy * .12 : 0);
   }
 
   private updateLanes(activeLane: number) {
