@@ -16,6 +16,7 @@ export class ColorLaneRC extends ColorLane {
   }
 
   tutorial(){
+    this.onboarding?.cancel();
     this.playing=false;
     this.clear();
     this.gates.clear(true,true);
@@ -57,6 +58,7 @@ export class ColorLaneRC extends ColorLane {
   resumeRun(){
     this.clear();
     this.paused=false;
+    this.onboarding.resume();
     Audio.resumeMusic();
     this.shell(false);
     this.overlay.setVisible(false);
@@ -65,6 +67,7 @@ export class ColorLaneRC extends ColorLane {
 
   quitToHome(){
     this.clear();
+    this.onboarding.cancel();
     this.paused=false;
     this.playing=false;
     Audio.stopMusic();

@@ -44,9 +44,9 @@ export class TerrainRestorationManager {
   private particleCursor = 0;
   private chunkHeight = 390;
   private chunkWidth = 390;
-  private chunkOverlap = 4;
+  private chunkOverlap = 24;
   private chunkStep = this.chunkHeight - this.chunkOverlap;
-  private sourceInset = 3;
+  private sourceInset = 12;
   private planeY = AIRCRAFT_Y;
   private frontierOffset = 46;
   private time = 0;
