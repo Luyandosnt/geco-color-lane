@@ -1,5 +1,6 @@
 import { ColorLane } from './ColorLane';
 import { Core } from '../core/Core';
+import { Audio } from '../core/Audio';
 
 export class ColorLaneRC extends ColorLane {
   create(){
@@ -41,6 +42,7 @@ export class ColorLaneRC extends ColorLane {
   togglePause(){
     if(!this.playing)return;
     if(!this.paused){
+      Audio.pauseMusic();
       this.paused=true;
       this.overlay.setVisible(true).setAlpha(.9);
       this.shell(true);
@@ -55,6 +57,7 @@ export class ColorLaneRC extends ColorLane {
   resumeRun(){
     this.clear();
     this.paused=false;
+    Audio.resumeMusic();
     this.shell(false);
     this.overlay.setVisible(false);
     this.pause.setText('Ⅱ PAUSE');
@@ -64,6 +67,7 @@ export class ColorLaneRC extends ColorLane {
     this.clear();
     this.paused=false;
     this.playing=false;
+    Audio.stopMusic();
     this.time.removeAllEvents();
     this.tweens.killTweensOf(this.danger);
     this.danger.setAlpha(0);

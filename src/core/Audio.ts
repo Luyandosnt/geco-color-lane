@@ -33,7 +33,11 @@ export const Audio = {
     this.musicActive = true;
     this.musicPaused = false;
     this.rate = 1;
+    const previousTrack = this.track;
     this.track = Math.floor(Math.random() * TRACKS.length);
+    if (TRACKS.length > 1 && this.track === previousTrack) {
+      this.track = (this.track + 1) % TRACKS.length;
+    }
     this.playTrack(this.track);
   },
 
