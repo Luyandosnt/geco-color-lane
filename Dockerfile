@@ -39,6 +39,7 @@ COPY . .
 RUN node --version \
     && java -version \
     && npm run build \
+    && find dist -type f -path '*/Sprites/GameUI/Limited Time*PREMIUM OFFER*.png' -print -delete \
     && rm -rf android \
     && npx cap add android \
     && npx cap sync android \
