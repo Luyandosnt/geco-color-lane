@@ -3,6 +3,7 @@ import './style.css';
 import { Core } from './core/Core';
 import { Online } from './core/Online';
 import { ColorLaneRC } from './game/ColorLaneRC';
+import { GecoSplashScene } from './game/GecoSplashScene';
 
 Core.boot();
 Online.boot().finally(()=>new Phaser.Game({
@@ -12,7 +13,7 @@ Online.boot().finally(()=>new Phaser.Game({
   height: 844,
   backgroundColor: '#111827',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [ColorLaneRC]
+  scene: [GecoSplashScene, ColorLaneRC]
 }));
 
 if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));

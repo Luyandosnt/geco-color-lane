@@ -53,12 +53,14 @@ export class ColorLaneRC extends ColorLane {
       this.overlay.setVisible(true).setAlpha(.9);
       this.shell(true);
       this.shellPanel.setTexture(UI_ASSETS.panels.pause.key).setDisplaySize(310, 360).setPosition(195, 422);
-      this.title.setPosition(195, 250).setFontSize(42).setText('PAUSED');
-      this.hint.setPosition(195, 352).setFontSize(15).setText('Your run is safe.\nResume when you are ready.');
+      const panelTop = this.shellPanel.y - this.shellPanel.displayHeight / 2;
+      const titleY = panelTop + 34;
+      this.title.setPosition(this.shellPanel.x, titleY).setFontSize(42).setText('PAUSED');
+      this.hint.setPosition(this.shellPanel.x, titleY + 72).setFontSize(15).setText('Your run is safe.\nResume when you are ready.');
       this.pause.setText('');
       this.pauseBg.setVisible(false);
-      this.btn(485,'RESUME',()=>this.resumeRun(),190);
-      this.btn(552,'HOME',()=>this.quitToHome(),170);
+      this.btn(titleY + 176,'RESUME',()=>this.resumeRun(),190);
+      this.btn(titleY + 244,'HOME',()=>this.quitToHome(),170);
     }else this.resumeRun();
   }
 

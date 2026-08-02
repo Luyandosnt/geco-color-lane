@@ -17,6 +17,29 @@ const G = 0xfacc15;
 const MENU_PANEL = { x: 195, y: 424, width: 330, height: 430 };
 const MENU_BUTTON = 156;
 const MAIN_BUTTON = 184;
+const LEADERBOARD_LAYOUT = {
+  titleY: 166,
+  panelY: 418,
+  panelWidth: 330,
+  panelHeight: 430,
+  panelPadding: 34,
+  textY: 306,
+  homeButtonY: 590,
+  buttonWidth: 170
+};
+const RUN_COMPLETE_LAYOUT = {
+  titleY: 158,
+  panelY: 386,
+  panelWidth: 334,
+  panelHeight: 360,
+  panelPadding: 24,
+  statRowGap: 22,
+  messageGap: 30,
+  buttonStartY: 625,
+  buttonGap: 60,
+  playAgainWidth: 190,
+  buttonWidth: 178
+};
 
 export class ColorLane extends Phaser.Scene {
   lane = 1; speed = 220; playing = false; paused = false; spawnDelay = 1180;
@@ -188,7 +211,7 @@ export class ColorLane extends Phaser.Scene {
     if (step > 0) this.btn(600, 'BACK', () => this.tutorial(step - 1), 155);
     if (step < pages.length - 1) this.btn(600, 'NEXT', () => this.tutorial(step + 1), 155);
     else this.btn(600, 'PLAY', () => { Core.markTutorial(); this.start(); }, 180);
-    this.btn(662, 'HOME', () => this.home(), 170);
+    this.btn(548, 'HOME', () => this.home(), 170);
   }
 
   account() {
@@ -213,10 +236,16 @@ export class ColorLane extends Phaser.Scene {
   }
 
   async board() {
-    this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 178).setFontSize(36).setText('GLOBAL TOP 10'); this.hint.setPosition(195, 342).setFontSize(14).setText('LOADING...');
+    const centerX = this.scale.width / 2;
+    const layout = LEADERBOARD_LAYOUT;
+    this.clear();
+    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(layout.panelWidth, layout.panelHeight).setPosition(centerX, layout.panelY);
+    this.shell(true);
+    this.title.setPosition(centerX, layout.titleY).setFontSize(34).setText('GLOBAL TOP 10');
+    this.hint.setPosition(centerX, layout.textY).setFontSize(13).setLineSpacing(8).setText('LOADING...');
     try { const rows = await Online.top(10), rank = await Online.rank(); let text = rows.length ? rows.map((r, i) => (i + 1) + '. ' + r.display_name + '   ' + r.best_score).join('\n') : 'NO SCORES YET'; text += rank ? '\n\nYOUR RANK  #' + rank.rank + '   •   BEST ' + rank.score : Online.user ? '\n\nFINISH A RUN TO GET RANKED' : '\n\nSIGN IN TO JOIN THE RANKINGS'; this.hint.setText(text); }
     catch (e: any) { this.hint.setText('LEADERBOARD UNAVAILABLE\n' + String(e?.message || '').slice(0, 50)); }
-    this.btn(662, 'HOME', () => this.home(), 170);
+    this.btn(layout.homeButtonY, 'HOME', () => this.home(), layout.buttonWidth);
   }
 
   shop() {
@@ -457,5 +486,73 @@ export class ColorLane extends Phaser.Scene {
   togglePause() { this.paused = !this.paused; this.paused ? this.onboarding.pause() : this.onboarding.resume(); this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
 
-  async over() { Audio.stopMusic(); this.onboarding.cancel(); this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m)); this.playing = false; this.paused = false; this.time.removeAllEvents(); this.tweens.killTweensOf(this.danger); this.danger.setAlpha(0); this.gates.clear(true, true); this.cameras.main.fade(260, 0, 0, 0); await new Promise(r => setTimeout(r, 270)); this.player.setVisible(false); this.plane.setVisible(false); const s = this.run.snapshot(); Core.finish(s.score, s.coins); let submitted = false, error = ''; if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); } this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.gameOver.key).setDisplaySize(340, 255).setPosition(195, 410); this.shell(true); this.cameras.main.fadeIn(220, 0, 0, 0); this.title.setPosition(195, 210).setFontSize(40).setText(s.score >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE'); this.hint.setPosition(195, 350).setFontSize(14).setText('DISTANCE ' + Math.round(this.distance) + 'm\nSCORE ' + s.score + ' • BEST ' + Core.data.highScore + '\nFUEL CELLS ' + this.pickups.fuel + ' • WATER ' + this.pickups.water + ' • GOLD ' + this.pickups.gold + '\nRESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%\nWORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n\n' + (Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS')); this.pause.setText(''); this.pauseBg.setVisible(false); this.btn(555, 'PLAY AGAIN', () => this.start(), 190); this.btn(615, 'LEADERBOARD', () => this.board(), 178); this.btn(675, 'HOME', () => this.home(), 170); }
+  async over() {
+    Audio.stopMusic();
+    this.onboarding.cancel();
+    this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m));
+    this.playing = false;
+    this.paused = false;
+    this.time.removeAllEvents();
+    this.tweens.killTweensOf(this.danger);
+    this.danger.setAlpha(0);
+    this.gates.clear(true, true);
+    this.cameras.main.fade(260, 0, 0, 0);
+    await new Promise(r => setTimeout(r, 270));
+    this.player.setVisible(false);
+    this.plane.setVisible(false);
+
+    const s = this.run.snapshot();
+    const distance = Math.round(this.distance);
+    Core.finish(s.score, s.coins);
+    let submitted = false, error = '';
+    if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); }
+
+    const centerX = this.scale.width / 2;
+    const layout = RUN_COMPLETE_LAYOUT;
+    this.clear();
+    this.shellPanel.setTexture(UI_ASSETS.panels.gameOver.key).setDisplaySize(layout.panelWidth, layout.panelHeight).setPosition(centerX, layout.panelY);
+    this.shell(true);
+    this.cameras.main.fadeIn(220, 0, 0, 0);
+    const panelTop = this.shellPanel.y - this.shellPanel.displayHeight / 2;
+    const panelBottom = this.shellPanel.y + this.shellPanel.displayHeight / 2;
+    this.title.setPosition(centerX, layout.titleY).setFontSize(36).setText(distance >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE');
+    this.hint.setText('').setVisible(false);
+    const rows = [
+      'DISTANCE: ' + distance + 'm',
+      'BEST: ' + Core.data.highScore + 'm',
+      'FUEL CELLS: ' + this.pickups.fuel,
+      'WATER: ' + this.pickups.water,
+      'GOLD: ' + this.pickups.gold,
+      'RESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%',
+      'WORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%'
+    ];
+    const message = Online.user ? (error ? 'SCORE SAVE FAILED' : submitted ? 'NEW GLOBAL BEST SUBMITTED' : 'GLOBAL BEST ALREADY HIGHER') : 'SIGN IN TO JOIN GLOBAL RANKINGS';
+    const blockHeight = (rows.length - 1) * layout.statRowGap + layout.messageGap;
+    const minStartY = panelTop + 28;
+    const maxStartY = panelBottom - 28 - blockHeight;
+    const contentStartY = Phaser.Math.Clamp(this.shellPanel.y - blockHeight / 2, minStartY, maxStartY);
+    rows.forEach((row, index) => {
+      this.menu.push(this.add.text(centerX, contentStartY + index * layout.statRowGap, row, {
+        fontFamily: 'Arial',
+        fontSize: '13px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: layout.panelWidth - layout.panelPadding * 2 }
+      }).setOrigin(.5).setDepth(52));
+    });
+    this.menu.push(this.add.text(centerX, contentStartY + (rows.length - 1) * layout.statRowGap + layout.messageGap, message, {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#e5e7eb',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: layout.panelWidth - layout.panelPadding * 2 }
+    }).setOrigin(.5).setDepth(52));
+    this.pause.setText('');
+    this.pauseBg.setVisible(false);
+    this.btn(layout.buttonStartY, 'PLAY AGAIN', () => this.start(), layout.playAgainWidth);
+    this.btn(layout.buttonStartY + layout.buttonGap, 'LEADERBOARD', () => this.board(), layout.buttonWidth);
+    this.btn(layout.buttonStartY + layout.buttonGap * 2, 'HOME', () => this.home(), layout.buttonWidth);
+  }
 }
