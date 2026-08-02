@@ -8,3 +8,14 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: web
+    name: inshimu-origins-apk
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: false
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: 10000
