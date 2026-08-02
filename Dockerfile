@@ -40,7 +40,7 @@ RUN node --version \
     && java -version \
     && npm run build \
     && find dist -type f -name '*.meta' -print -delete \
-    && find dist -type f -path '*/Sprites/GameUI/Limited Time*PREMIUM OFFER*.png' -print -delete \
+    && node -e "const fs=require('fs'),path=require('path');const root='dist';function walk(dir){for(const name of fs.readdirSync(dir)){const full=path.join(dir,name);const st=fs.lstatSync(full);if(st.isDirectory()){walk(full);continue;}if(/[^\x20-\x7E]/.test(name)){console.log('Removing malformed asset:',full);fs.unlinkSync(full);}}}walk(root);" \
     && rm -rf android \
     && npx cap add android \
     && npx cap sync android \
