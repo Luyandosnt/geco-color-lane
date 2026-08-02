@@ -63,7 +63,7 @@ export class ColorLane extends Phaser.Scene {
     this.level = this.add.text(195, 20, '', { fontFamily: 'Arial', fontSize: '16px', color: '#e5e7eb', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
     this.streak = this.add.text(366, 47, '', { fontFamily: 'Arial', fontSize: '13px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
     this.fuelLabel = this.add.text(43, 17, '', { fontFamily: 'Arial', fontSize: '14px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
-    this.fuelBar = this.add.image(83, 37, UI_ASSETS.panels.card.key).setDisplaySize(90, 24).setDepth(32);
+    this.fuelBar = this.add.image(83, 37, UI_ASSETS.buttons.primary.key).setDisplaySize(90, 34).setDepth(32);
     this.fuelFill = this.add.rectangle(45, 37, 76, 8, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
     this.restoreHud = this.add.text(195, 45, '', { fontFamily: 'Arial', fontSize: '13px', color: '#93c5fd', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
     this.restoreBoost = this.add.rectangle(160, 61, 70, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
@@ -91,7 +91,7 @@ export class ColorLane extends Phaser.Scene {
     this.shellPanel = hyperPanel(this, 195, 418, UI_ASSETS.panels.menu.key, 344, 49).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(14, 820, 'v0.1.18 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(14, 820, 'v0.1.19 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
       const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
@@ -112,15 +112,15 @@ export class ColorLane extends Phaser.Scene {
     const clean = t.replace(/[^\w\s]/g, '').trim().toUpperCase();
     const variant = this.buttonVariant(clean);
     const iconKey = this.buttonIcon(clean);
-    const noLabel = ['PLAY', 'LEADERBOARD', 'SHOP', 'SETTING', 'SETTINGS', 'RESUME', 'BACK'].some(x => clean === x);
+    const noLabel = ['PLAY', 'RESUME', 'BACK'].some(x => clean === x);
     const b = hyperButton(this, 195, y, { variant, iconKey, width: Math.min(Math.max(w, 145), 235), label: noLabel ? undefined : clean, noLabel, onClick: cb });
     this.menu.push(b);
   }
   buttonVariant(clean: string): UIButtonVariant {
     if (clean === 'PLAY') return 'play';
-    if (clean === 'LEADERBOARD') return 'leaderboard';
-    if (clean === 'SHOP') return 'shop';
-    if (clean === 'SETTINGS' || clean === 'SETTING') return 'settings';
+    if (clean === 'LEADERBOARD') return 'primary';
+    if (clean === 'SHOP') return 'primary';
+    if (clean === 'SETTINGS' || clean === 'SETTING') return 'primary';
     if (clean === 'RESUME') return 'resume';
     if (clean.includes('BACK') || clean.includes('HOME')) return clean.includes('HOME') ? 'primary' : 'back';
     if (clean === 'CONFIRM') return 'confirm';
@@ -149,9 +149,10 @@ export class ColorLane extends Phaser.Scene {
   home() {
     Audio.stopMusic();
     this.onboarding?.cancel();
-    this.shellPanel.setTexture(UI_ASSETS.panels.tallCard.key).setDisplaySize(350, 372).setPosition(195, 420);
+    this.shellPanel.setVisible(false);
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false);
     this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
+    this.shellPanel.setVisible(false);
     const titleCard = hyperPanel(this, 195, 150, UI_ASSETS.panels.card.key, 270, 50);
     const worldCard = hyperPanel(this, 195, 245, UI_ASSETS.panels.card.key, 292, 50);
     const coin = hyperIcon(this, 288, 222, UI_ASSETS.icons.coin.key, 22, 52);
@@ -187,7 +188,7 @@ export class ColorLane extends Phaser.Scene {
   }
 
   account() {
-    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 220).setFontSize(42).setText(Online.user ? 'ACCOUNT' : 'GECO ACCOUNT');
+    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 220).setFontSize(42).setText('ACCOUNT');
     if (Online.user) { this.hint.setPosition(195, 345).setFontSize(16).setText(Online.name() + '\n' + Online.user.email + '\n\nYour best runs are submitted globally.'); this.btn(485, 'VIEW RANK', () => this.board(), 190); this.btn(545, 'SIGN OUT', async () => { await Online.signOut(); this.home(); }, 190); this.btn(605, 'HOME', () => this.home(), 170); return; }
     this.hint.setPosition(195, 340).setFontSize(16).setText('Sign in to join global rankings.\nGuest play remains available.'); this.btn(465, 'SIGN IN', () => this.authForm(false), 190); this.btn(525, 'CREATE ACCOUNT', () => this.authForm(true), 210); this.btn(585, 'HOME', () => this.home(), 170);
   }

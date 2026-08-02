@@ -28,7 +28,7 @@ export class RunOnboardingController {
   private fuel: Gate | null = null;
   private timers: Phaser.Time.TimerEvent[] = [];
   private paused = false;
-  private fuelSpeed = 92;
+  private fuelSpeed = 260;
   private stopY = PICKUP_Y - 36;
 
   constructor(scene: Phaser.Scene, config: RunOnboardingConfig) {
@@ -48,18 +48,20 @@ export class RunOnboardingController {
       .setVisible(false);
     this.hand = this.scene.add.text(0, 728, 'TAP', {
       fontFamily: 'Arial',
-      fontSize: '18px',
+      fontSize: '16px',
       color: '#ffffff',
       fontStyle: 'bold',
-      backgroundColor: '#0f172a',
-      padding: { x: 10, y: 7 }
+      stroke: '#020617',
+      strokeThickness: 5
     }).setOrigin(.5).setDepth(41).setVisible(false);
     this.label = this.scene.add.text(195, 666, '', {
       fontFamily: 'Arial',
-      fontSize: '17px',
+      fontSize: '18px',
       color: '#ffffff',
       fontStyle: 'bold',
       align: 'center',
+      stroke: '#020617',
+      strokeThickness: 5,
       wordWrap: { width: 320 }
     }).setOrigin(.5).setDepth(41).setVisible(false);
   }
@@ -161,15 +163,16 @@ export class RunOnboardingController {
   private setTarget(lane: number, text: string, centerHighlight = false) {
     this.currentTarget = lane;
     const x = this.config.lanes[lane];
-    this.label.setText(text).setAlpha(1).setVisible(true);
-    this.hand.setPosition(x, 736).setAlpha(1).setScale(1).setVisible(true);
+    this.label.setText(text).setPosition(x, centerHighlight ? AIRCRAFT_Y - 126 : 690).setAlpha(1).setVisible(true);
+    this.hand.setPosition(x, 738).setAlpha(1).setScale(1).setVisible(true);
     this.ring.setPosition(x, 748).setAlpha(.72).setScale(.65).setVisible(true);
     this.lanePulse.setPosition(x, centerHighlight ? AIRCRAFT_Y - 44 : 742)
       .setFillStyle(centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .045 : 0)
       .setStrokeStyle(3, centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .42 : 0)
       .setVisible(true);
     this.scene.tweens.killTweensOf([this.hand, this.ring, this.lanePulse]);
-    this.scene.tweens.add({ targets: this.hand, y: 724, scale: .94, yoyo: true, repeat: -1, duration: 430, ease: 'Sine.easeInOut' });
+    this.scene.tweens.add({ targets: [this.hand, this.ring], y: '-=12', yoyo: true, repeat: -1, duration: 430, ease: 'Sine.easeInOut' });
+    this.scene.tweens.add({ targets: this.hand, scale: .94, yoyo: true, repeat: -1, duration: 430, ease: 'Sine.easeInOut' });
     this.scene.tweens.add({ targets: this.ring, scale: 1.85, alpha: 0, repeat: -1, duration: 860, ease: 'Sine.easeOut' });
     if (centerHighlight) this.scene.tweens.add({ targets: this.lanePulse, alpha: .9, yoyo: true, repeat: -1, duration: 540, ease: 'Sine.easeInOut' });
   }
@@ -189,10 +192,11 @@ export class RunOnboardingController {
 
   private spawnFuel() {
     if (this.state !== 'spawnFuel') return;
-    const sprite = this.scene.add.image(this.config.lanes[1], -42, TerrainAssets.fuel)
+    const startY = 305;
+    const sprite = this.scene.add.image(this.config.lanes[1], startY, TerrainAssets.fuel)
       .setDisplaySize(58, 58)
       .setTint(0x3b82f6);
-    const glow = this.scene.add.circle(this.config.lanes[1], -42, 35, 0x38bdf8, .1)
+    const glow = this.scene.add.circle(this.config.lanes[1], startY, 35, 0x38bdf8, .1)
       .setStrokeStyle(3, 0x8bf0d1, .55)
       .setBlendMode(Phaser.BlendModes.ADD);
     this.fuel = this.scene.add.container(0, 0, [glow, sprite]) as Gate;
@@ -216,9 +220,9 @@ export class RunOnboardingController {
       ease: 'Sine.easeIn',
       onComplete: () => {
         this.config.collectFuel(fuel);
-        this.label.setText('FUEL COLLECTED!').setVisible(true).setAlpha(1).setScale(.9);
-        this.scene.tweens.add({ targets: this.label, scale: 1.04, alpha: 0, duration: 620, ease: 'Sine.easeOut' });
-        this.queue(500, () => this.countdown());
+        this.label.setText('FUEL COLLECTED!').setPosition(195, AIRCRAFT_Y - 130).setVisible(true).setAlpha(1).setScale(.9);
+        this.scene.tweens.add({ targets: this.label, scale: 1.04, alpha: 0, duration: 260, ease: 'Sine.easeOut' });
+        this.queue(160, () => this.countdown());
       }
     });
   }
@@ -235,13 +239,13 @@ export class RunOnboardingController {
     }).setOrigin(.5).setDepth(42);
     this.countdownText = text;
     values.forEach((value, index) => {
-      this.queue(index * 700, () => {
+      this.queue(index * 560, () => {
         text.setText(value).setAlpha(1).setScale(.72);
         Audio.catch();
-        this.scene.tweens.add({ targets: text, scale: 1.16, alpha: 0, duration: 650, ease: 'Cubic.easeOut' });
+        this.scene.tweens.add({ targets: text, scale: 1.16, alpha: 0, duration: 520, ease: 'Cubic.easeOut' });
       });
     });
-    this.queue(values.length * 700, () => {
+    this.queue(values.length * 560, () => {
       text.destroy();
       this.countdownText = null;
       this.state = 'complete';
