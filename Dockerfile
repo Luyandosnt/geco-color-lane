@@ -1,12 +1,13 @@
-FROM node:20-bookworm AS apk-builder
+FROM node:22-bookworm AS apk-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
-ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV PATH="${JAVA_HOME}/bin:${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jdk wget unzip ca-certificates \
+    && apt-get install -y --no-install-recommends openjdk-21-jdk wget unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
@@ -17,17 +18,19 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
     && rm -rf /tmp/android-tools /tmp/android-tools.zip
 
 RUN yes | sdkmanager --licenses >/dev/null \
-    && sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+    && sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci \
-    && npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+    && npm install --no-save @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
 
 COPY . .
 
-RUN npm run build \
+RUN node --version \
+    && java -version \
+    && npm run build \
     && rm -rf android \
     && npx cap add android \
     && npx cap sync android \
@@ -38,7 +41,7 @@ RUN npm run build \
     && cp app/build/outputs/apk/debug/app-debug.apk /output/Inshimu-Origins-debug.apk \
     && sha256sum /output/Inshimu-Origins-debug.apk > /output/Inshimu-Origins-debug.apk.sha256
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 
 WORKDIR /app
 COPY render-apk-server.mjs ./render-apk-server.mjs
