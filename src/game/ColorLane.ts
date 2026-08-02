@@ -194,6 +194,7 @@ export class ColorLane extends Phaser.Scene {
     this.shellPanel.setVisible(false);
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false);
     this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.distanceLabel.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.chainHud.setText('').setVisible(false); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
+    this.overlay.setVisible(false);
     this.shellPanel.setVisible(false);
     const logo = this.add.image(195, 116, UI_ASSETS.titles.inshimuOrigins.key).setDisplaySize(330, 98).setDepth(52);
     const coin = hyperIcon(this, 288, 198, UI_ASSETS.icons.coin.key, 20, 52);
