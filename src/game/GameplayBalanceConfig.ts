@@ -12,7 +12,9 @@ export const GameplayBalanceConfig = {
     passivePerSecond: .0022,
     distancePerPixel: .000004,
     fuelCollect: .015,
+    pollenCollect: .01,
     waterCollect: .045,
+    nectarCollect: .045,
     goldInstantMin: 3,
     goldInstantMax: 5,
     milestones: [10, 25, 50, 75, 100]

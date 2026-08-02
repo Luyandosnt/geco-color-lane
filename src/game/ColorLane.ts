@@ -6,12 +6,20 @@ import { Online } from '../core/Online';
 import { AIRCRAFT_Y, PICKUP_EFFECT_Y, PICKUP_Y, TerrainAssets, TerrainRestorationManager } from './TerrainRestorationManager';
 import { RunOnboardingController } from './RunOnboardingController';
 import { DEBUG_RESOURCES, GameplayBalanceConfig } from './GameplayBalanceConfig';
-import { PickupSpawnDirector, PickupType } from './PickupSpawnDirector';
+import { FlightPatternDirector, FlightPickupType, FlightSpawn, HazardType } from './FlightPatternDirector';
+import { HazardController, HazardObject } from './HazardController';
+import { PollenChainController } from './PollenChainController';
 import { RestorationPowerController, RestorationProgressController } from './ResourceControllers';
 import { MOBILE_UI_LAYOUT as UI, hyperButton, hyperIcon, hyperPanel } from '../ui/HyperCasualUI';
 import { preloadHyperCasualUI, UI_ASSETS, UIButtonVariant } from '../ui/HyperCasualUIAssets';
 
-type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean; pickupType?: PickupType };
+type Gate = Phaser.GameObjects.Container & {
+  lane?: number;
+  kind?: 'pickup' | 'hazard';
+  pickupType?: FlightPickupType;
+  hazardType?: HazardType;
+  gold?: boolean;
+};
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
 const G = 0xfacc15;
 const MENU_PANEL = { x: 195, y: 424, width: 330, height: 430 };
@@ -43,14 +51,17 @@ const RUN_COMPLETE_LAYOUT = {
 
 export class ColorLane extends Phaser.Scene {
   lane = 1; speed = 220; playing = false; paused = false; spawnDelay = 1180;
-  visualTime = 0; nextOrbitSpark = 0; distance = 0;
+  visualTime = 0; nextOrbitSpark = 0; distance = 0; nextPatternAt = 0; pollenDustMuteMs = 0;
   run = new RunSystem(); pattern: number[] = []; pi = 0;
   restorePower = new RestorationPowerController(); restoreProgress = new RestorationProgressController();
-  spawnDirector!: PickupSpawnDirector; pickups = { fuel: 0, water: 0, gold: 0 };
+  patternDirector = new FlightPatternDirector();
+  pollenChain = new PollenChainController();
+  hazardController!: HazardController;
+  pickups = { fuel: 0, water: 0, gold: 0, hazardsAvoided: 0 };
   menu: Phaser.GameObjects.GameObject[] = []; inputs: HTMLInputElement[] = [];
   player!: Phaser.GameObjects.Rectangle; gates!: Phaser.GameObjects.Group;
   score!: Phaser.GameObjects.Text; distanceLabel!: Phaser.GameObjects.Text; streak!: Phaser.GameObjects.Text; lives!: Phaser.GameObjects.Text; level!: Phaser.GameObjects.Text;
-  restoreHud!: Phaser.GameObjects.Text; restoreBoost!: Phaser.GameObjects.Rectangle; worldHud!: Phaser.GameObjects.Text; debugResources!: Phaser.GameObjects.Text;
+  restoreHud!: Phaser.GameObjects.Text; restoreBoost!: Phaser.GameObjects.Rectangle; worldHud!: Phaser.GameObjects.Text; debugResources!: Phaser.GameObjects.Text; chainHud!: Phaser.GameObjects.Text;
   lifePips: Phaser.GameObjects.Image[] = [];
   title!: Phaser.GameObjects.Text; hint!: Phaser.GameObjects.Text; status!: Phaser.GameObjects.Text; pause!: Phaser.GameObjects.Text; pauseBg!: Phaser.GameObjects.Image; shellPanel!: Phaser.GameObjects.Image;
   version!: Phaser.GameObjects.Text;
@@ -91,6 +102,7 @@ export class ColorLane extends Phaser.Scene {
     this.restoreHud = this.add.text(195, 34, '', { fontFamily: 'Arial', fontSize: '10px', color: '#dbeafe', fontStyle: 'bold', align: 'center' }).setOrigin(.5).setDepth(32);
     this.restoreBoost = this.add.rectangle(166, 43, 58, 2, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
     this.worldHud = this.add.text(195, 52, '', { fontFamily: 'Arial', fontSize: '15px', color: '#ffffff', fontStyle: 'bold', align: 'center' }).setOrigin(.5).setDepth(32);
+    this.chainHud = this.add.text(195, 91, '', { fontFamily: 'Arial', fontSize: '13px', color: '#fef9c3', fontStyle: 'bold', align: 'center', stroke: '#020617', strokeThickness: 4 }).setOrigin(.5).setDepth(32);
     this.debugResources = this.add.text(12, 132, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
     this.pauseBg = this.add.image(195, 805, UI_ASSETS.buttons.primary.key).setDisplaySize(130, 50).setDepth(59).setVisible(false);
     this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#e5e7eb', padding: { x: 20, y: 8 }, fontStyle: 'bold', stroke: '#0f172a', strokeThickness: 3 }).setOrigin(.5).setDepth(60).setInteractive();
@@ -101,12 +113,14 @@ export class ColorLane extends Phaser.Scene {
     this.aura = this.add.circle(this.player.x, this.player.y, 46, C[1], 0).setStrokeStyle(3, C[1], 0).setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     this.rays = [-18, 0, 18].map((off, i) => this.add.rectangle(this.player.x + off, this.player.y + 24, 5, 70 + i * 10, C[1], 0).setAngle(off * .35).setDepth(8).setBlendMode(Phaser.BlendModes.ADD));
     this.gates = this.add.group();
-    this.spawnDirector = new PickupSpawnDirector(this);
+    this.hazardController = new HazardController(this, this.lanes);
     this.onboarding = new RunOnboardingController(this, {
       lanes: this.lanes,
       gates: this.gates,
+      getCurrentLane: () => this.lane,
       moveToLane: lane => this.move(lane),
       collectFuel: gate => this.onboardingFuel(gate),
+      hitHazard: gate => this.hitHazard(gate, true),
       onComplete: () => this.beginNormalGameplay()
     });
     this.onboarding.create();
@@ -114,15 +128,16 @@ export class ColorLane extends Phaser.Scene {
     this.shellPanel = hyperPanel(this, 195, 418, UI_ASSETS.panels.menu.key, 344, 49).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(UI.SCREEN_SIDE_PADDING, 820, 'v0.1.20 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(UI.SCREEN_SIDE_PADDING, 820, 'v0.1.21 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
-      const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
       if (this.onboarding.isActive()) {
+        const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
         this.onboarding.handleLaneTap(lane);
         return;
       }
-      this.move(lane);
+      const direction = p.worldX >= this.scale.width / 2 ? 1 : -1;
+      this.move(Phaser.Math.Clamp(this.lane + direction, 0, 2));
     });
     window.addEventListener('blur', () => { if (this.playing) Audio.pauseMusic(); });
     window.addEventListener('focus', () => { if (this.playing && !this.paused) Audio.resumeMusic(); });
@@ -178,16 +193,16 @@ export class ColorLane extends Phaser.Scene {
     this.onboarding?.cancel();
     this.shellPanel.setVisible(false);
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false);
-    this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.distanceLabel.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
+    this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.distanceLabel.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.chainHud.setText('').setVisible(false); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
     this.shellPanel.setVisible(false);
-    const logo = this.add.image(195, 116, UI_ASSETS.titles.restorationWorld.key).setDisplaySize(330, 98).setDepth(52);
+    const logo = this.add.image(195, 116, UI_ASSETS.titles.inshimuOrigins.key).setDisplaySize(330, 98).setDepth(52);
     const coin = hyperIcon(this, 288, 198, UI_ASSETS.icons.coin.key, 20, 52);
     this.menu.push(logo, coin);
     this.title.setVisible(false);
     this.hint.setPosition(195, 205).setFontSize(13).setText('BEST ' + Core.data.highScore + '   COINS ' + Core.data.coins + '\nWORLD ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n' + (Online.user ? Online.name() : 'GUEST'));
     this.version.setVisible(true);
     const playY = 310;
-    this.btn(playY, 'PLAY', () => Core.data.tutorialSeen ? this.start() : this.tutorial(0), 210);
+    this.btn(playY, 'PLAY', () => this.start(), 210);
     this.btn(playY + 70, 'LEADERBOARD', () => this.board(), 178);
     this.btn(playY + 132, Online.user ? 'ACCOUNT' : 'SIGN IN', () => this.account(), 178);
     this.btn(playY + 194, 'SHOP', () => this.shop(), 178);
@@ -199,12 +214,12 @@ export class ColorLane extends Phaser.Scene {
     this.menuPanel();
     this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false); this.shell(true);
     const pages = [
-      ['HOW TO PLAY', 'MATCH THE COLOR\n\nA colored box falls down one of three lanes.\nMove your block into the SAME COLOR lane before it reaches the bottom.'],
-      ['MOVE FAST', 'TAP A LANE\n\nTap one of the three lane zones to move instantly.\n\nWatch the next falling pickup — then choose its lane.'],
-      ['BUILD MOMENTUM', 'KEEP MATCHING\n\nConsecutive catches build FLOW and ON FIRE streaks.\nLong streaks earn stronger rewards and feedback.'],
-      ['GOLD = REWARD', 'CATCH ★ GOLD\n\nGold boxes can appear in ANY lane.\nCatch them for bonus coins and JACKPOT rewards.'],
-      ['SURVIVE', 'YOU HAVE 3 LIVES\n\nMiss a colored box and you lose a life.\nDANGER ZONE means two remain.\nLAST FIGHT means one remains.'],
-      ['READY?', 'MATCH. STREAK. SURVIVE.\n\nRead the falling box, move to its lane, and keep the run alive as the game gets faster.']
+      ['HOW TO PLAY', 'FOLLOW POLLEN\n\nPollen appears in chains across the three lanes.\nMove through each orb to keep the chain alive.'],
+      ['MOVE FAST', 'TAP A LANE\n\nTap one of the three lane zones to move instantly.\n\nFollow the pollen path while keeping clear of hazards.'],
+      ['BUILD MOMENTUM', 'KEEP THE CHAIN\n\nConsecutive pollen builds FLOW and ON FIRE energy.\nMissing pollen breaks the chain but does not remove vitality.'],
+      ['GOLD = REWARD', 'CATCH GOLDEN POLLEN\n\nRare golden pollen appears after harder routes.\nCatch it for bonus coins and a restoration surge.'],
+      ['SURVIVE', 'YOU HAVE 3 VITALITY CHARGES\n\nMissing pollen breaks your chain.\nHazards remove a charge.\nWhen all three are gone, the run ends.'],
+      ['READY?', 'FOLLOW POLLEN. DODGE HAZARDS.\n\nCollect pollen chains, avoid airborne hazards, and restore the world as distance climbs.']
     ];
     const page = pages[Math.max(0, Math.min(step, pages.length - 1))];
     this.title.setPosition(195, 190).setFontSize(step === 0 ? 38 : 34).setText(page[0]); this.hint.setPosition(195, 340).setFontSize(15).setText(page[1]);
@@ -289,9 +304,12 @@ export class ColorLane extends Phaser.Scene {
     this.run.reset();
     this.restorePower.reset();
     this.restoreProgress.resetRun();
-    this.spawnDirector.reset();
-    this.pickups = { fuel: 0, water: 0, gold: 0 };
+    this.patternDirector.reset();
+    this.pollenChain.reset();
+    this.pickups = { fuel: 0, water: 0, gold: 0, hazardsAvoided: 0 };
     this.distance = 0;
+    this.nextPatternAt = 0;
+    this.pollenDustMuteMs = 0;
     this.playing = true;
     this.paused = false;
     Audio.startMusic();
@@ -308,7 +326,7 @@ export class ColorLane extends Phaser.Scene {
     this.pause.setText('Ⅱ PAUSE');
     this.pauseBg.setVisible(true);
     this.cameras.main.fadeIn(220, 0, 0, 0);
-    this.onboarding.start();
+    this.beginNormalGameplay();
   }
   beginNormalGameplay() {
     if (!this.playing || this.paused) return;
@@ -316,44 +334,58 @@ export class ColorLane extends Phaser.Scene {
     this.lane = 1;
     this.flash('GO!', 420);
     this.cameras.main.flash(110, 120, 255, 170, false);
-    this.spawn();
-    this.schedule();
+    this.spawnPattern();
   }
   hud() {
     const s = this.run.snapshot();
     this.lives.setText('').setVisible(false);
     this.lifePips.forEach((pip, i) => pip.setVisible(true).clearTint().setAlpha(i < s.lives ? 1 : .22));
     this.level.setText('').setVisible(false);
-    this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : '');
+    this.streak.setText(this.pollenChain.current >= 25 ? 'ON FIRE' : this.pollenChain.current >= 10 ? 'FLOW' : '');
     this.distanceLabel.setVisible(true);
     this.score.setText(String(Math.round(this.distance)));
     this.restoreHud.setText('WORLD\nRESTORATION').setVisible(true);
     this.restoreBoost.setVisible(false).width = 58 * this.restorePower.boostRatio();
     this.worldHud.setText(this.restoreProgress.displayTotal.toFixed(1) + '%').setVisible(true);
+    this.chainHud.setVisible(this.playing && this.pollenChain.current > 0).setText(this.pollenChain.current > 0 ? 'POLLEN CHAIN x' + this.pollenChain.current : '');
   }
-  schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
-  choose() { return this.spawnDirector.next(this.run.level, this.run.score).lane; }
-  spawn() {
-    if (this.gates.getLength() >= 3) return;
-    const pickup = this.spawnDirector.next(this.run.level, this.run.score);
-    const l = pickup.lane;
+  schedule() {}
+  choose() { return this.patternDirector.next(this.distance).pollen[0]?.lane ?? 1; }
+  spawnPattern() {
+    const pattern = this.patternDirector.next(this.distance);
+    [...pattern.pollen, ...pattern.hazards].forEach(spawn => {
+      const gate = spawn.kind === 'hazard' ? this.createHazard(spawn) : this.createPickup(spawn);
+      gate.setData('patternId', pattern.id);
+      this.gates.add(gate);
+    });
+    this.nextPatternAt = this.distance + pattern.length;
+  }
+  createPickup(spawn: FlightSpawn) {
+    const l = spawn.lane;
     const children: Phaser.GameObjects.GameObject[] = [];
-    if (pickup.type === 'goldCore') {
-      const halo = this.add.circle(this.lanes[l], -38, 35, G, .14).setBlendMode(Phaser.BlendModes.ADD);
-      const core = this.add.circle(this.lanes[l], -38, 22, G, .95).setStrokeStyle(4, 0xffffff, .78).setBlendMode(Phaser.BlendModes.ADD);
+    if (spawn.pickupType === 'goldenPollen') {
+      const halo = this.add.circle(0, 0, 35, G, .14).setBlendMode(Phaser.BlendModes.ADD);
+      const core = this.add.circle(0, 0, 22, G, .95).setStrokeStyle(4, 0xffffff, .78).setBlendMode(Phaser.BlendModes.ADD);
       children.push(halo, core);
       this.tweens.add({ targets: [halo, core], scale: 1.12, angle: 180, yoyo: true, repeat: -1, duration: 380 });
-    } else if (pickup.type === 'water') {
-      const drop = this.add.circle(this.lanes[l], -38, 25, 0x38bdf8, .92).setScale(.82, 1.18).setStrokeStyle(4, 0xbff4ff, .75);
-      const shine = this.add.circle(this.lanes[l] - 8, -50, 5, 0xffffff, .72);
+    } else if (spawn.pickupType === 'nectar') {
+      const drop = this.add.circle(0, 0, 25, 0x38bdf8, .92).setScale(.82, 1.18).setStrokeStyle(4, 0xbff4ff, .75);
+      const shine = this.add.circle(-8, -12, 5, 0xffffff, .72);
       children.push(drop, shine);
     } else {
-      children.push(this.add.image(this.lanes[l], -38, TerrainAssets.fuel).setDisplaySize(58, 58).setTint(C[l]));
+      const glow = this.add.circle(0, 0, 28, 0xfef9c3, .08).setBlendMode(Phaser.BlendModes.ADD);
+      children.push(glow, this.add.image(0, 0, TerrainAssets.fuel).setDisplaySize(44, 44));
     }
-    const g = this.add.container(0, 0, children) as Gate;
-    g.lane = l; g.pickupType = pickup.type; g.gold = pickup.type === 'goldCore'; g.setDepth(12).setScale(.7).setAlpha(0);
+    const g = this.add.container(this.lanes[l], spawn.offsetY, children) as Gate;
+    g.kind = 'pickup'; g.lane = l; g.pickupType = spawn.pickupType || 'pollen'; g.gold = g.pickupType === 'goldenPollen'; g.setDepth(12).setScale(.7).setAlpha(0);
     this.tweens.add({ targets: g, scale: 1, alpha: 1, duration: 180, ease: 'Back.out' });
-    this.gates.add(g);
+    return g;
+  }
+  createHazard(spawn: FlightSpawn) {
+    const g = this.hazardController.create(spawn) as Gate & HazardObject;
+    g.kind = 'hazard';
+    g.hazardType = spawn.hazardType || 'corruptedWasp';
+    return g;
   }
   visualUpdate(d: number) {
     this.visualTime += d;
@@ -362,12 +394,12 @@ export class ColorLane extends Phaser.Scene {
     const terrainSpeed = onboardingActive ? 0 : this.speed;
     this.terrain.update(terrainSpeed, this.player.x, this.playing, this.paused || onboardingActive || (this.onboarding?.shouldFreezeWorld() ?? false), d);
     this.plane.setPosition(this.player.x, this.player.y).setVisible(this.playing);
-    const s = this.run.streak, col = C[this.lane], aura = this.playing ? Math.min(.28, Math.max(0, (s - 2) * .045)) : 0;
+    const s = this.pollenChain.current, col = C[this.lane], dustScale = this.pollenDustMuteMs > 0 ? .35 : 1, aura = this.playing ? Math.min(.28, Math.max(0, (s - 2) * .018)) * dustScale : 0;
     this.aura.setPosition(this.player.x, this.player.y).setFillStyle(col, aura * .22).setStrokeStyle(3 + Math.min(5, s), col, aura);
     this.aura.setScale(1 + Math.sin(this.visualTime / 180) * .04 + Math.min(.28, s * .015));
     this.rays.forEach((r, i) => r.setPosition(this.player.x + (i - 1) * 18, this.player.y + 35).setFillStyle(col, s >= 4 && this.playing ? Math.min(.18, .055 + s * .012) : 0).setScale(1, 1 + Math.sin(this.visualTime / 240 + i) * .16));
     if (this.playing && s >= 2 && this.visualTime > this.nextOrbitSpark) {
-      this.nextOrbitSpark = this.visualTime + (s >= 4 ? 140 : 240);
+      this.nextOrbitSpark = this.visualTime + (s >= 25 ? 110 : s >= 10 ? 155 : 240);
       const a = this.visualTime * .006;
       const q = this.add.circle(this.player.x + Math.cos(a) * 39, this.player.y + Math.sin(a) * 27, s >= 4 ? 3 : 2, s >= 4 ? 0xffffff : col, .65).setDepth(23).setBlendMode(Phaser.BlendModes.ADD);
       this.tweens.add({ targets: q, x: this.player.x + Math.cos(a + .8) * 48, y: this.player.y + Math.sin(a + .8) * 33, alpha: 0, scale: .25, duration: 260, onComplete: () => q.destroy() });
@@ -383,39 +415,49 @@ export class ColorLane extends Phaser.Scene {
       this.onboarding.update(d);
       return;
     }
-    const l = this.run.level;
+    const l = Math.floor(this.distance / 500) + 1;
+    this.run.level = l;
     Audio.setMusicPace(l);
     this.restorePower.update(d);
-    this.speed = Math.min(540, 215 + (l - 1) * 28 + this.run.score * 1.2);
-    this.spawnDelay = Math.max(650, 1200 - (l - 1) * 55);
+    this.pollenDustMuteMs = Math.max(0, this.pollenDustMuteMs - d);
+    this.speed = Math.min(560, 215 + Math.floor(this.distance / 500) * 24 + this.pollenChain.best * .55);
     this.distance += this.speed * d / 1000;
-    const multiplier = this.restorePower.multiplier();
+    if (this.distance >= this.nextPatternAt && this.gates.getLength() < 30) this.spawnPattern();
+    const multiplier = this.restorePower.multiplier() * this.pollenChain.restorationMultiplier();
     this.restoreProgress.add((GameplayBalanceConfig.restoration.passivePerSecond * d / 1000 + this.speed * d / 1000 * GameplayBalanceConfig.restoration.distancePerPixel) * multiplier);
     this.restoreProgress.checkMilestones().forEach(m => this.milestoneFx(m));
     this.terrain.setRestorationPower(multiplier, this.restorePower.surgeMs > 0 ? this.restorePower.boostRatio() : 0);
     for (const o of [...this.gates.getChildren()] as Gate[]) {
       o.y += this.speed * d / 1000;
-      if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(this.lanes[o.lane!], o.y);
+      if (o.kind === 'hazard') this.hazardController.update(o as Gate & HazardObject, this.visualTime);
+      if (o.gold && Phaser.Math.Between(1, 12) === 1) this.spark(o.x, o.y);
       if (o.y > PICKUP_Y && !o.getData('checked')) {
         o.setData('checked', true);
-        this.resolvePickup(o);
+        this.resolveGate(o);
       }
-      if (o.y > 880) o.destroy();
+      if (o.y > 880) {
+        if (o.kind === 'hazard' && !o.getData('hit')) this.pickups.hazardsAvoided++;
+        o.destroy();
+      }
     }
-    if (DEBUG_RESOURCES) this.debugResources.setVisible(true).setText('Lives ' + this.run.lives + '\nWater ' + Math.ceil(this.restorePower.waterMs / 1000) + 's\nSurge ' + Math.ceil(this.restorePower.surgeMs / 1000) + 's\nRun +' + this.restoreProgress.runGain.toFixed(2) + '%\nTotal ' + Core.data.worldRestorationPercent.toFixed(2) + '%');
+    if (DEBUG_RESOURCES) this.debugResources.setVisible(true).setText('Charges ' + this.run.lives + '\nNectar ' + Math.ceil(this.restorePower.waterMs / 1000) + 's\nSurge ' + Math.ceil(this.restorePower.surgeMs / 1000) + 's\nChain ' + this.pollenChain.current + '\nRun +' + this.restoreProgress.runGain.toFixed(2) + '%\nTotal ' + Core.data.worldRestorationPercent.toFixed(2) + '%');
     else this.debugResources.setVisible(false);
     this.hud();
   }
 
-  resolvePickup(o: Gate) {
-    const type = o.pickupType || 'fuel';
+  resolveGate(o: Gate) {
     const matched = o.lane === this.lane;
-    if (!matched) {
-      type === 'fuel' ? this.miss(o) : o.destroy();
+    if (o.kind === 'hazard') {
+      if (this.hazardTouchesPlayer(o as Gate & HazardObject)) this.hitHazard(o);
       return;
     }
-    if (type === 'water') this.water(o);
-    else if (type === 'goldCore') this.gold(o);
+    const type = o.pickupType || 'pollen';
+    if (!matched) {
+      this.missPollen(o);
+      return;
+    }
+    if (type === 'nectar') this.water(o);
+    else if (type === 'goldenPollen') this.gold(o);
     else this.ok(o);
   }
 
@@ -477,12 +519,93 @@ export class ColorLane extends Phaser.Scene {
       this.tweens.add({ targets: q, x: x + Math.cos(a) * r, y: PICKUP_EFFECT_Y + Math.sin(a) * r, alpha: 0, scale: .25, duration: Phaser.Math.Between(170, 290), ease: 'Sine.easeOut', onComplete: () => q.destroy() });
     }
   }
-  ok(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.fuel++; this.restoreProgress.add(GameplayBalanceConfig.restoration.fuelCollect * this.restorePower.multiplier()); const r = this.run.catch(); Audio.catch(); this.floatText('+FUEL', x, 0x22c55e); const s = this.run.streak, big = r.bonus || s >= 4; this.burst(x, C[this.lane], r.bonus ? 24 : s >= 3 ? 20 : 16); this.streakFx(s); this.tweens.add({ targets: this.player, scaleX: r.bonus ? 1.38 : 1.17, scaleY: r.bonus ? .75 : .89, yoyo: true, duration: r.bonus ? 100 : 60 }); if (r.bonus) { this.cameras.main.flash(75, 120, 255, 170, false); this.flash('GREAT STREAK!', 540); } else if (s === 4) this.flash('ON FIRE!', 380); else if (s === 3) this.flash('GREAT CATCH!', 300); else if (s === 2) this.flash('NICE!', 220); else if (Phaser.Math.Between(1, 4) === 1) this.flash('GOOD CATCH!', 170); if (big) this.cameras.main.zoomTo(1.016, 80); if (big) this.time.delayedCall(90, () => this.cameras.main.zoomTo(1, 130)); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
-  onboardingFuel(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.fuel++; const r = this.run.catch(); Audio.catch(); this.floatText('+FUEL', x, 0x22c55e); this.burst(x, C[this.lane], 16); if (r.levelUp) { Audio.level(); this.levelFx(); } this.hud(); }
-  water(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.water++; this.restorePower.activateWater(); this.restoreProgress.add(GameplayBalanceConfig.restoration.waterCollect); this.run.score++; this.run.streak++; this.run.level = Math.floor(this.run.score / 10) + 1; Audio.water(); this.floatText('RESTORE BOOST', x, 0x38bdf8); this.burst(x, 0x38bdf8, 18); this.cameras.main.flash(70, 80, 220, 255, false); this.hud(); }
-  gold(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.pickups.gold++; this.run.score++; this.run.coins += 5; this.run.level = Math.floor(this.run.score / 10) + 1; this.restorePower.activateSurge(); this.restoreProgress.add(Phaser.Math.FloatBetween(GameplayBalanceConfig.restoration.goldInstantMin, GameplayBalanceConfig.restoration.goldInstantMax)); Audio.surge(); this.surgeFx(x); this.flash('RESTORATION SURGE!', 650); this.hud(); }
+  ok(o: Gate) {
+    const x = this.lanes[o.lane!];
+    o.destroy();
+    this.run.score++;
+    this.run.coins++;
+    this.pickups.fuel++;
+    const milestone = this.pollenChain.collect();
+    this.restoreProgress.add(GameplayBalanceConfig.restoration.pollenCollect * this.restorePower.multiplier() * this.pollenChain.restorationMultiplier());
+    Audio.catch();
+    const s = this.pollenChain.current, big = milestone > 0 || s >= 25;
+    this.burst(x, 0xfef9c3, big ? 18 : 9);
+    this.streakFx(s);
+    this.tweens.add({ targets: this.player, scaleX: big ? 1.22 : 1.1, scaleY: big ? .86 : .94, yoyo: true, duration: big ? 90 : 55 });
+    if (milestone) this.flash('POLLEN CHAIN x' + milestone, 560);
+    if (big) this.cameras.main.zoomTo(1.012, 70);
+    if (big) this.time.delayedCall(85, () => this.cameras.main.zoomTo(1, 120));
+    this.hud();
+  }
+  onboardingFuel(o: Gate) { this.ok(o); }
+  water(o: Gate) {
+    const x = this.lanes[o.lane!];
+    o.destroy();
+    this.pickups.water++;
+    if (this.run.lives < 3) this.run.lives++;
+    this.restorePower.activateWater();
+    this.restoreProgress.add(GameplayBalanceConfig.restoration.nectarCollect);
+    this.run.score += 3;
+    Audio.water();
+    this.floatText('NECTAR BOOST', x, 0x38bdf8);
+    this.burst(x, 0x38bdf8, 18);
+    this.cameras.main.flash(70, 80, 220, 255, false);
+    this.hud();
+  }
+  gold(o: Gate) {
+    const x = this.lanes[o.lane!];
+    o.destroy();
+    this.pickups.gold++;
+    this.run.score += 10;
+    this.run.coins += 5;
+    this.restorePower.activateSurge();
+    this.restoreProgress.add(Phaser.Math.FloatBetween(GameplayBalanceConfig.restoration.goldInstantMin, GameplayBalanceConfig.restoration.goldInstantMax));
+    Audio.surge();
+    this.surgeFx(x);
+    this.flash('GOLDEN POLLEN!', 650);
+    this.hud();
+  }
   levelFx() { const t = this.add.text(195, 390, 'LEVEL ' + this.run.level + '!\nKEEP GOING!', { align: 'center', fontFamily: 'Arial', fontSize: '38px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(.5).setDepth(35).setAlpha(0).setScale(.5); const ring = this.add.circle(this.player.x, this.player.y, 28, 0xffffff, .05).setStrokeStyle(5, 0xffffff, .8).setDepth(24).setBlendMode(Phaser.BlendModes.ADD); const glow = this.add.rectangle(195, 422, 390, 844, C[this.lane], .06).setDepth(3).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: ring, scale: 7, alpha: 0, duration: 420, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() }); this.tweens.add({ targets: glow, alpha: 0, duration: 450, onComplete: () => glow.destroy() }); this.tweens.add({ targets: this.player, y: this.player.y - 12, yoyo: true, duration: 120, ease: 'Sine.easeOut' }); for (let i = 0; i < 18; i++) { const q = this.add.rectangle(this.player.x, this.player.y, 3, 8, C[i % 3], .86).setDepth(24).setAngle(Phaser.Math.Between(0, 180)).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: q, x: this.player.x + Phaser.Math.Between(-120, 120), y: this.player.y + Phaser.Math.Between(-95, 45), alpha: 0, scale: .3, duration: Phaser.Math.Between(320, 520), ease: 'Sine.easeOut', onComplete: () => q.destroy() }); } this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 180, yoyo: true, hold: 180, onComplete: () => t.destroy() }); this.cameras.main.zoomTo(1.025, 90); this.time.delayedCall(100, () => this.cameras.main.zoomTo(1, 140)); }
-  miss(o: Gate) { const x = this.lanes[o.lane!]; o.destroy(); this.run.streak = 0; const dead = this.run.miss(); Audio.miss(); const warning = dead ? 'FIGHT OVER' : this.run.lives === 1 ? 'LAST FIGHT!' : this.run.lives === 2 ? 'DANGER ZONE!' : 'LIFE LOST!'; this.cameras.main.shake(dead ? 260 : 135, dead ? .02 : .011); this.cameras.main.flash(dead ? 130 : 90, 255, 35, 60, false); const slash = this.add.rectangle(x, PICKUP_EFFECT_Y, 85, 8, 0xffffff, .9).setAngle(-35).setDepth(25); this.tweens.add({ targets: slash, alpha: 0, scaleX: 1.8, duration: 180, onComplete: () => slash.destroy() }); if (!dead && this.run.lives === 1) { this.danger.setAlpha(.055); this.tweens.add({ targets: this.danger, alpha: .13, yoyo: true, repeat: -1, duration: 520 }); } else if (!dead && this.run.lives === 2) this.danger.setAlpha(.025); this.flash(warning, dead ? 700 : 560); this.hud(); if (dead) { Audio.stopMusic(); this.danger.setAlpha(.2); this.time.delayedCall(120, () => this.cameras.main.shake(280, .022)); this.playing = false; this.time.delayedCall(650, () => this.over()); } }
+  missPollen(o: Gate) {
+    o.destroy();
+    if (o.pickupType === 'pollen') {
+      this.pollenChain.miss();
+      this.pollenDustMuteMs = 900;
+      this.floatText('CHAIN BROKEN', this.player.x, 0xe5e7eb);
+    }
+    this.hud();
+  }
+  hazardTouchesPlayer(o: Gate & HazardObject) {
+    if (o.hazardType === 'birdCrossing') return Math.abs(o.x - this.player.x) < 46;
+    if (o.hazardType === 'corruptedWasp' && Math.abs(o.x - this.player.x) < 42) return true;
+    return (o.occupiedLanes || [o.lane ?? 1]).includes(this.lane);
+  }
+  hitHazard(o: Gate, tutorial = false) {
+    const x = o.x || this.lanes[o.lane!];
+    o.setData('hit', true);
+    o.destroy();
+    this.pollenChain.miss();
+    this.pollenDustMuteMs = 1200;
+    const dead = tutorial ? false : this.run.miss();
+    Audio.miss();
+    const warning = dead ? 'FLIGHT OVER' : this.run.lives === 1 ? 'LAST CHARGE!' : this.run.lives === 2 ? 'VITALITY HIT!' : 'HAZARD HIT!';
+    this.cameras.main.shake(dead ? 220 : 100, dead ? .015 : .008);
+    this.cameras.main.flash(dead ? 130 : 80, 255, 35, 60, false);
+    const slash = this.add.rectangle(x, PICKUP_EFFECT_Y, 85, 8, 0xffffff, .9).setAngle(-35).setDepth(25);
+    this.tweens.add({ targets: slash, alpha: 0, scaleX: 1.8, duration: 180, onComplete: () => slash.destroy() });
+    if (!dead && this.run.lives === 1) {
+      this.danger.setAlpha(.055);
+      this.tweens.add({ targets: this.danger, alpha: .13, yoyo: true, repeat: -1, duration: 700 });
+    } else if (!dead && this.run.lives === 2) this.danger.setAlpha(.025);
+    this.flash(warning, dead ? 700 : 560);
+    this.hud();
+    if (dead) {
+      Audio.stopMusic();
+      this.danger.setAlpha(.2);
+      this.playing = false;
+      this.time.delayedCall(650, () => this.over());
+    }
+  }
   togglePause() { this.paused = !this.paused; this.paused ? this.onboarding.pause() : this.onboarding.resume(); this.paused ? Audio.pauseMusic() : Audio.resumeMusic(); this.overlay.setVisible(this.paused).setAlpha(.78); this.status.setText(this.paused ? 'PAUSED' : '').setAlpha(this.paused ? 1 : 0); this.pause.setText(this.paused ? '▶ RESUME' : 'Ⅱ PAUSE'); if (!this.paused) this.overlay.setVisible(false); }
   flash(t: string, d: number) { this.status.setText(t).setAlpha(1).setScale(.82); this.tweens.add({ targets: this.status, alpha: 0, scale: 1.08, duration: d }); }
 
@@ -503,9 +626,10 @@ export class ColorLane extends Phaser.Scene {
 
     const s = this.run.snapshot();
     const distance = Math.round(this.distance);
-    Core.finish(s.score, s.coins);
+    const previousBest = Core.data.highScore;
+    Core.finish(distance, s.coins);
     let submitted = false, error = '';
-    if (Online.user) try { submitted = await Online.submit(s.score); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); }
+    if (Online.user) try { submitted = await Online.submit(distance); } catch (e: any) { error = String(e?.message || 'UPLOAD FAILED'); }
 
     const centerX = this.scale.width / 2;
     const layout = RUN_COMPLETE_LAYOUT;
@@ -515,14 +639,16 @@ export class ColorLane extends Phaser.Scene {
     this.cameras.main.fadeIn(220, 0, 0, 0);
     const panelTop = this.shellPanel.y - this.shellPanel.displayHeight / 2;
     const panelBottom = this.shellPanel.y + this.shellPanel.displayHeight / 2;
-    this.title.setPosition(centerX, layout.titleY).setFontSize(36).setText(distance >= Core.data.highScore ? 'NEW BEST!' : 'RUN COMPLETE');
+    this.title.setPosition(centerX, layout.titleY).setFontSize(36).setText(distance >= previousBest ? 'NEW BEST!' : 'RUN COMPLETE');
     this.hint.setText('').setVisible(false);
     const rows = [
       'DISTANCE: ' + distance + 'm',
       'BEST: ' + Core.data.highScore + 'm',
-      'FUEL CELLS: ' + this.pickups.fuel,
-      'WATER: ' + this.pickups.water,
-      'GOLD: ' + this.pickups.gold,
+      'POLLEN COLLECTED: ' + this.pollenChain.total,
+      'BEST POLLEN CHAIN: ' + this.pollenChain.best,
+      'NECTAR COLLECTED: ' + this.pickups.water,
+      'GOLDEN POLLEN: ' + this.pickups.gold,
+      'HAZARDS AVOIDED: ' + this.pickups.hazardsAvoided,
       'RESTORED THIS RUN: +' + this.restoreProgress.runGain.toFixed(1) + '%',
       'WORLD RESTORATION: ' + Core.data.worldRestorationPercent.toFixed(1) + '%'
     ];
@@ -556,3 +682,4 @@ export class ColorLane extends Phaser.Scene {
     this.btn(layout.buttonStartY + layout.buttonGap * 2, 'HOME', () => this.home(), layout.buttonWidth);
   }
 }
+

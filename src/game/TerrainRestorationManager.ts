@@ -6,14 +6,20 @@ export const TerrainAssets = {
   corrupted: 'terrain-corrupted',
   restored: 'terrain-restored',
   plane: 'plane',
-  fuel: 'fuel-cell'
+  fuel: 'fuel-cell',
+  wasp: 'hazard-corrupted-wasp',
+  cloud: 'hazard-pesticide-cloud',
+  bird: 'hazard-bird-crossing'
 };
 
 export const TerrainAssetPaths = {
-  corrupted: '/assets/environment/savannah-corrupted.jpg',
-  restored: '/assets/environment/savannah-restored.jpg',
-  plane: '/assets/environment/plane.png',
-  fuel: '/assets/environment/fuel-cell.png'
+  corrupted: '/assets/environment/forest-burren.png',
+  restored: '/assets/environment/Forest-restored.png',
+  plane: '/assets/environment/Char%202.png',
+  fuel: '/assets/environment/Orb.png',
+  wasp: '/assets/environment/Corrupted%20Wasp.png',
+  cloud: '/assets/environment/Cloud.png',
+  bird: '/assets/environment/Bird.png'
 };
 
 export const AIRCRAFT_Y = 612;
@@ -65,6 +71,9 @@ export class TerrainRestorationManager {
     scene.load.image(TerrainAssets.restored, TerrainAssetPaths.restored);
     scene.load.image(TerrainAssets.plane, TerrainAssetPaths.plane);
     scene.load.image(TerrainAssets.fuel, TerrainAssetPaths.fuel);
+    scene.load.image(TerrainAssets.wasp, TerrainAssetPaths.wasp);
+    scene.load.image(TerrainAssets.cloud, TerrainAssetPaths.cloud);
+    scene.load.image(TerrainAssets.bird, TerrainAssetPaths.bird);
   }
 
   create() {

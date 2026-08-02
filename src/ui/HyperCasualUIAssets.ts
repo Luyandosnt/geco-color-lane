@@ -50,6 +50,7 @@ export const UI_ASSETS = {
     gameOver: { key: 'ui-panel-game-over', path: '/assets/Sprites/Panel_Sprites/Game Over (1).png' }
   },
   titles: {
+    inshimuOrigins: { key: 'ui-title-inshimu-origins', path: '/assets/ui/Inshimu-Origins-title.png' },
     restorationWorld: { key: 'ui-title-restoration-world', path: '/assets/ui/restoration-world-title.png' }
   },
   toggle: {

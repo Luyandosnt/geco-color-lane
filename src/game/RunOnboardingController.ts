@@ -2,14 +2,16 @@ import Phaser from 'phaser';
 import { Audio } from '../core/Audio';
 import { AIRCRAFT_Y, PICKUP_Y, TerrainAssets } from './TerrainRestorationManager';
 
-type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean };
-type OnboardingState = 'idle' | 'moveFirst' | 'moveOpposite' | 'spawnFuel' | 'waitForCenter' | 'collectFuel' | 'countdown' | 'complete';
+type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean; kind?: 'pickup' | 'hazard'; pickupType?: 'pollen'; hazardType?: 'corruptedWasp' };
+type OnboardingState = 'idle' | 'moveFirst' | 'moveOpposite' | 'spawnPollen' | 'waitForCenter' | 'dodgeHazard' | 'countdown' | 'complete';
 
 type RunOnboardingConfig = {
   lanes: number[];
   gates: Phaser.GameObjects.Group;
+  getCurrentLane: () => number;
   moveToLane: (lane: number) => void;
   collectFuel: (gate: Gate) => void;
+  hitHazard: (gate: Gate) => void;
   onComplete: () => void;
 };
 
@@ -26,6 +28,7 @@ export class RunOnboardingController {
   private lanePulse!: Phaser.GameObjects.Rectangle;
   private countdownText: Phaser.GameObjects.Text | null = null;
   private fuel: Gate | null = null;
+  private tutorialGates: Gate[] = [];
   private timers: Phaser.Time.TimerEvent[] = [];
   private paused = false;
   private fuelSpeed = 260;
@@ -77,12 +80,12 @@ export class RunOnboardingController {
 
   handleLaneTap(lane: number) {
     if (!this.isActive() || this.paused) return true;
-    if (this.state === 'spawnFuel') {
+    if (this.state === 'spawnPollen') {
       this.rejectTap();
       return true;
     }
 
-    if ((this.state === 'moveFirst' || this.state === 'moveOpposite' || this.state === 'waitForCenter') && lane !== this.currentTarget) {
+    if ((this.state === 'moveFirst' || this.state === 'moveOpposite' || this.state === 'waitForCenter' || this.state === 'dodgeHazard') && lane !== this.currentTarget) {
       this.rejectTap();
       return true;
     }
@@ -93,14 +96,15 @@ export class RunOnboardingController {
       this.queue(170, () => this.setTarget(this.secondTarget, 'NOW TAP HERE'));
     } else if (this.state === 'moveOpposite') {
       this.config.moveToLane(lane);
-      this.state = 'spawnFuel';
+      this.state = 'spawnPollen';
       this.hidePrompt();
-      this.queue(260, () => this.spawnFuel());
+      this.queue(220, () => this.spawnFuel());
     } else if (this.state === 'waitForCenter') {
       this.config.moveToLane(1);
-      this.state = 'collectFuel';
       this.hidePrompt();
-      this.queue(150, () => this.finishFuel());
+    } else if (this.state === 'dodgeHazard') {
+      this.config.moveToLane(lane);
+      this.hidePrompt();
     }
 
     return true;
@@ -108,12 +112,40 @@ export class RunOnboardingController {
 
   update(delta: number) {
     if (!this.isActive() || this.paused) return;
-    if (this.state === 'spawnFuel' && this.fuel) {
-      this.fuel.y = Math.min(this.stopY, this.fuel.y + this.fuelSpeed * delta / 1000);
-      if (this.fuel.y >= this.stopY) {
+    if ((this.state === 'spawnPollen' || this.state === 'waitForCenter' || this.state === 'dodgeHazard') && this.tutorialGates.length) {
+      for (const gate of [...this.tutorialGates]) {
+        gate.y += this.fuelSpeed * delta / 1000;
+        if (gate.kind === 'pickup' && gate.y >= PICKUP_Y && !gate.getData('checked')) {
+          if (this.config.getCurrentLane() === gate.lane) {
+            gate.setData('checked', true);
+            this.tutorialGates = this.tutorialGates.filter(x => x !== gate);
+            this.config.collectFuel(gate);
+          } else {
+            gate.y = PICKUP_Y - 22;
+            this.state = 'waitForCenter';
+            this.setTarget(1, 'MOVE TO THE CENTER', true);
+          }
+        } else if (gate.kind === 'hazard' && gate.y >= PICKUP_Y && !gate.getData('checked')) {
+          gate.setData('checked', true);
+          this.tutorialGates = this.tutorialGates.filter(x => x !== gate);
+          if (gate.lane === this.config.getCurrentLane()) {
+            this.config.hitHazard(gate);
+            this.queue(280, () => this.countdown());
+          } else {
+            gate.destroy();
+            this.queue(140, () => this.countdown());
+          }
+        }
+        if (gate.y > 880) {
+          this.tutorialGates = this.tutorialGates.filter(x => x !== gate);
+          gate.destroy();
+        }
+      }
+      if (this.state === 'spawnPollen' && this.tutorialGates.some(gate => gate.kind === 'pickup' && gate.y >= this.stopY)) {
         this.state = 'waitForCenter';
         this.setTarget(1, 'MOVE TO THE CENTER', true);
       }
+      if (this.state === 'waitForCenter' && !this.tutorialGates.some(gate => gate.kind === 'pickup')) this.spawnObstacle();
     }
   }
 
@@ -138,6 +170,8 @@ export class RunOnboardingController {
       this.fuel.destroy();
       this.fuel = null;
     }
+    this.tutorialGates.forEach(gate => gate.destroy());
+    this.tutorialGates = [];
     if (this.countdownText) {
       this.countdownText.destroy();
       this.countdownText = null;
@@ -157,7 +191,7 @@ export class RunOnboardingController {
   }
 
   shouldFreezeWorld() {
-    return this.state === 'waitForCenter' || this.state === 'countdown';
+    return this.state === 'waitForCenter' || this.state === 'dodgeHazard' || this.state === 'countdown';
   }
 
   private setTarget(lane: number, text: string, centerHighlight = false) {
@@ -192,40 +226,42 @@ export class RunOnboardingController {
   }
 
   private spawnFuel() {
-    if (this.state !== 'spawnFuel') return;
-    const startY = 305;
-    const sprite = this.scene.add.image(0, 0, TerrainAssets.fuel)
-      .setDisplaySize(58, 58)
-      .setTint(0x3b82f6);
-    const glow = this.scene.add.circle(0, 0, 35, 0x38bdf8, .1)
-      .setStrokeStyle(3, 0x8bf0d1, .55)
-      .setBlendMode(Phaser.BlendModes.ADD);
-    this.fuel = this.scene.add.container(this.config.lanes[1], startY, [glow, sprite]) as Gate;
-    this.fuel.lane = 1;
-    this.fuel.gold = false;
-    this.fuel.setDepth(12);
-    this.fuel.setData('onboarding', true);
-    this.config.gates.add(this.fuel);
-    this.scene.tweens.add({ targets: glow, scale: 1.16, alpha: .2, yoyo: true, repeat: -1, duration: 380 });
-    this.setTarget(1, 'PICK UP THE FUEL CELL');
+    if (this.state !== 'spawnPollen') return;
+    const startY = 250;
+    for (let i = 0; i < 5; i++) {
+      const sprite = this.scene.add.image(0, 0, TerrainAssets.fuel).setDisplaySize(44, 44);
+      const glow = this.scene.add.circle(0, 0, 28, 0xfef9c3, .12).setBlendMode(Phaser.BlendModes.ADD);
+      const gate = this.scene.add.container(this.config.lanes[1], startY - i * 70, [glow, sprite]) as Gate;
+      gate.lane = 1;
+      gate.kind = 'pickup';
+      gate.pickupType = 'pollen';
+      gate.setDepth(12);
+      gate.setData('onboarding', true);
+      this.tutorialGates.push(gate);
+      this.config.gates.add(gate);
+      this.scene.tweens.add({ targets: glow, scale: 1.16, alpha: .22, yoyo: true, repeat: -1, duration: 380 });
+    }
+    this.setTarget(1, 'PICK UP THE POLLEN');
   }
 
-  private finishFuel() {
-    if (!this.fuel) return;
-    const fuel = this.fuel;
-    this.fuel = null;
-    this.scene.tweens.add({
-      targets: fuel,
-      y: PICKUP_Y,
-      duration: 130,
-      ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.config.collectFuel(fuel);
-        this.label.setText('FUEL COLLECTED!').setPosition(195, AIRCRAFT_Y - 130).setVisible(true).setAlpha(1).setScale(.9);
-        this.scene.tweens.add({ targets: this.label, scale: 1.04, alpha: 0, duration: 260, ease: 'Sine.easeOut' });
-        this.queue(160, () => this.countdown());
-      }
-    });
+  private spawnObstacle() {
+    if (this.state !== 'waitForCenter') return;
+    const hazardLane = 1;
+    const safeLane = this.firstTarget;
+    const warn = this.scene.add.triangle(0, -42, 0, 18, 18, -14, -18, -14, 0xfacc15, .86).setStrokeStyle(3, 0x111827, .8);
+    const waspGlow = this.scene.add.circle(0, 0, 38, 0xf97316, .1).setStrokeStyle(3, 0xa855f7, .45).setBlendMode(Phaser.BlendModes.ADD);
+    const wasp = this.scene.add.image(0, 0, TerrainAssets.wasp).setDisplaySize(62, 62);
+    const gate = this.scene.add.container(this.config.lanes[hazardLane], 275, [waspGlow, wasp, warn]) as Gate;
+    gate.lane = hazardLane;
+    gate.kind = 'hazard';
+    gate.hazardType = 'corruptedWasp';
+    gate.setDepth(13);
+    gate.setData('onboarding', true);
+    this.tutorialGates.push(gate);
+    this.config.gates.add(gate);
+    this.scene.tweens.add({ targets: wasp, angle: 8, yoyo: true, repeat: -1, duration: 220, ease: 'Sine.easeInOut' });
+    this.state = 'dodgeHazard';
+    this.setTarget(safeLane, 'DODGE THE HAZARD');
   }
 
   private countdown() {
@@ -261,6 +297,6 @@ export class RunOnboardingController {
   }
 
   private targets() {
-    return [this.label, this.hand, this.ring, this.lanePulse, this.fuel, this.countdownText].filter(Boolean) as Phaser.GameObjects.GameObject[];
+    return [this.label, this.hand, this.ring, this.lanePulse, this.fuel, this.countdownText, ...this.tutorialGates].filter(Boolean) as Phaser.GameObjects.GameObject[];
   }
 }
