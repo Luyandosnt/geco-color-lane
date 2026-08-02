@@ -37,7 +37,7 @@ export class RunOnboardingController {
   }
 
   create() {
-    this.lanePulse = this.scene.add.rectangle(0, AIRCRAFT_Y - 8, 112, 104, 0xffffff, 0)
+    this.lanePulse = this.scene.add.rectangle(0, AIRCRAFT_Y - 8, 118, 112, 0xffffff, 0)
       .setStrokeStyle(3, 0xffffff, 0)
       .setDepth(39)
       .setVisible(false);
@@ -167,8 +167,9 @@ export class RunOnboardingController {
     this.hand.setPosition(x, centerHighlight ? AIRCRAFT_Y + 72 : 690).setAlpha(1).setScale(1).setVisible(true);
     this.ring.setPosition(x, centerHighlight ? AIRCRAFT_Y + 82 : 700).setAlpha(.72).setScale(.65).setVisible(true);
     this.lanePulse.setPosition(x, centerHighlight ? this.stopY : 692)
-      .setFillStyle(centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .045 : 0)
-      .setStrokeStyle(3, centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .42 : 0)
+      .setAlpha(1)
+      .setFillStyle(centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .035 : 0)
+      .setStrokeStyle(centerHighlight ? 4 : 3, centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .78 : 0)
       .setVisible(true);
     this.scene.tweens.killTweensOf([this.hand, this.ring, this.lanePulse]);
     this.scene.tweens.add({ targets: [this.hand, this.ring], y: '-=12', yoyo: true, repeat: -1, duration: 430, ease: 'Sine.easeInOut' });
@@ -193,13 +194,13 @@ export class RunOnboardingController {
   private spawnFuel() {
     if (this.state !== 'spawnFuel') return;
     const startY = 305;
-    const sprite = this.scene.add.image(this.config.lanes[1], startY, TerrainAssets.fuel)
+    const sprite = this.scene.add.image(0, 0, TerrainAssets.fuel)
       .setDisplaySize(58, 58)
       .setTint(0x3b82f6);
-    const glow = this.scene.add.circle(this.config.lanes[1], startY, 35, 0x38bdf8, .1)
+    const glow = this.scene.add.circle(0, 0, 35, 0x38bdf8, .1)
       .setStrokeStyle(3, 0x8bf0d1, .55)
       .setBlendMode(Phaser.BlendModes.ADD);
-    this.fuel = this.scene.add.container(0, 0, [glow, sprite]) as Gate;
+    this.fuel = this.scene.add.container(this.config.lanes[1], startY, [glow, sprite]) as Gate;
     this.fuel.lane = 1;
     this.fuel.gold = false;
     this.fuel.setDepth(12);

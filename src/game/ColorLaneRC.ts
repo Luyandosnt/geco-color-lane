@@ -7,7 +7,7 @@ export class ColorLaneRC extends ColorLane {
   create(){
     super.create();
     // Gameplay information must always remain readable above gates and VFX.
-    [this.score,this.lives,this.level,this.streak,this.pause].forEach(x=>x.setDepth(90));
+    [this.score,this.distanceLabel,this.lives,this.level,this.streak,this.pause].forEach(x=>x.setDepth(90));
     this.status.setDepth(95);
   }
 
