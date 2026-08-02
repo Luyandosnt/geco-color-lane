@@ -8,12 +8,15 @@ import { RunOnboardingController } from './RunOnboardingController';
 import { DEBUG_RESOURCES, GameplayBalanceConfig } from './GameplayBalanceConfig';
 import { PickupSpawnDirector, PickupType } from './PickupSpawnDirector';
 import { FlightFuelController, RestorationPowerController, RestorationProgressController } from './ResourceControllers';
-import { hyperButton, hyperIcon, hyperPanel } from '../ui/HyperCasualUI';
+import { MOBILE_UI_LAYOUT as UI, hyperButton, hyperIcon, hyperPanel } from '../ui/HyperCasualUI';
 import { preloadHyperCasualUI, UI_ASSETS, UIButtonVariant } from '../ui/HyperCasualUIAssets';
 
 type Gate = Phaser.GameObjects.Container & { lane?: number; gold?: boolean; pickupType?: PickupType };
 const C = [0x22c55e, 0x3b82f6, 0xf43f5e];
 const G = 0xfacc15;
+const MENU_PANEL = { x: 195, y: 424, width: 330, height: 430 };
+const MENU_BUTTON = 156;
+const MAIN_BUTTON = 184;
 
 export class ColorLane extends Phaser.Scene {
   lane = 1; speed = 220; playing = false; paused = false; spawnDelay = 1180;
@@ -55,20 +58,19 @@ export class ColorLane extends Phaser.Scene {
       this.add.rectangle(4, 422, 8, 844, 0xf43f5e, 0),
       this.add.rectangle(386, 422, 8, 844, 0xf43f5e, 0)
     ].map(x => x.setDepth(29).setBlendMode(Phaser.BlendModes.ADD));
-    this.add.image(195, 43, UI_ASSETS.panels.hud.key).setDisplaySize(378, 54).setDepth(30).setAlpha(.96);
-    hyperIcon(this, 24, 27, UI_ASSETS.icons.star.key, 26, 32);
-    this.score = this.add.text(366, 10, '', { fontFamily: 'Arial', fontSize: '34px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
-    this.lives = this.add.text(0, 0, '', { fontFamily: 'Arial', fontSize: '1px', color: '#94a3b8' }).setDepth(32);
-    this.lifePips = [0, 1, 2].map(i => hyperIcon(this, 29 + i * 18, 58, UI_ASSETS.icons.badge.key, 20, 32));
-    this.level = this.add.text(195, 20, '', { fontFamily: 'Arial', fontSize: '16px', color: '#e5e7eb', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
-    this.streak = this.add.text(366, 47, '', { fontFamily: 'Arial', fontSize: '13px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
-    this.fuelLabel = this.add.text(43, 17, '', { fontFamily: 'Arial', fontSize: '14px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
-    this.fuelBar = this.add.image(83, 37, UI_ASSETS.buttons.primary.key).setDisplaySize(90, 34).setDepth(32);
-    this.fuelFill = this.add.rectangle(45, 37, 76, 8, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
-    this.restoreHud = this.add.text(195, 45, '', { fontFamily: 'Arial', fontSize: '13px', color: '#93c5fd', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
-    this.restoreBoost = this.add.rectangle(160, 61, 70, 4, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
-    this.worldHud = this.add.text(366, 62, '', { fontFamily: 'Arial', fontSize: '12px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(32);
-    this.debugResources = this.add.text(12, 116, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
+    this.add.image(195, 50, UI_ASSETS.panels.hud.key).setDisplaySize(378, 68).setDepth(30).setAlpha(.96);
+    this.score = this.add.text(366, 20, '', { fontFamily: 'Arial', fontSize: '30px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
+    this.lives = this.add.text(18, 23, '', { fontFamily: 'Arial', fontSize: '9px', color: '#e5e7eb', fontStyle: 'bold' }).setDepth(32);
+    this.lifePips = [0, 1, 2].map(i => hyperIcon(this, 51 + i * 15, 30, UI_ASSETS.icons.life.key, 13, 32));
+    this.level = this.add.text(195, 18, '', { fontFamily: 'Arial', fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
+    this.streak = this.add.text(366, 52, '', { fontFamily: 'Arial', fontSize: '10px', color: '#fde047', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(32);
+    this.fuelLabel = this.add.text(18, 67, '', { fontFamily: 'Arial', fontSize: '10px', color: '#d1fae5', fontStyle: 'bold' }).setDepth(32);
+    this.fuelBar = this.add.image(68, 48, UI_ASSETS.buttons.primary.key).setDisplaySize(78, 8).setDepth(32);
+    this.fuelFill = this.add.rectangle(35, 48, 66, 3, 0x22c55e, .95).setOrigin(0, .5).setDepth(33);
+    this.restoreHud = this.add.text(195, 57, '', { fontFamily: 'Arial', fontSize: '10px', color: '#dbeafe', fontStyle: 'bold' }).setOrigin(.5).setDepth(32);
+    this.restoreBoost = this.add.rectangle(166, 43, 58, 2, 0x38bdf8, .7).setOrigin(0, .5).setDepth(33);
+    this.worldHud = this.add.text(366, 67, '', { fontFamily: 'Arial', fontSize: '9px', color: '#d1d5db', fontStyle: 'bold', align: 'right' }).setOrigin(1, 0).setDepth(32);
+    this.debugResources = this.add.text(12, 132, '', { fontFamily: 'Arial', fontSize: '10px', color: '#e5e7eb', backgroundColor: 'rgba(2,6,23,.5)', padding: { x: 6, y: 4 } }).setDepth(91).setVisible(false);
     this.pauseBg = this.add.image(195, 805, UI_ASSETS.buttons.primary.key).setDisplaySize(130, 50).setDepth(59).setVisible(false);
     this.pause = this.add.text(195, 805, '', { fontFamily: 'Arial', fontSize: '14px', color: '#e5e7eb', padding: { x: 20, y: 8 }, fontStyle: 'bold', stroke: '#0f172a', strokeThickness: 3 }).setOrigin(.5).setDepth(60).setInteractive();
     this.pause.on('pointerdown', (p: Phaser.Input.Pointer) => { p.event.stopPropagation(); this.tweens.add({ targets: [this.pause, this.pauseBg], scale: .95, yoyo: true, duration: 70 }); if (this.playing) this.togglePause(); });
@@ -91,7 +93,7 @@ export class ColorLane extends Phaser.Scene {
     this.shellPanel = hyperPanel(this, 195, 418, UI_ASSETS.panels.menu.key, 344, 49).setVisible(false);
     this.title = this.add.text(195, 205, 'COLOR\nLANE', { align: 'center', fontFamily: 'Arial', fontSize: '48px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 360 } }).setOrigin(.5).setDepth(50);
     this.hint = this.add.text(195, 335, '', { align: 'center', fontFamily: 'Arial', fontSize: '16px', color: '#cbd5e1', lineSpacing: 7, wordWrap: { width: 340 } }).setOrigin(.5).setDepth(50);
-    this.version = this.add.text(14, 820, 'v0.1.19 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
+    this.version = this.add.text(UI.SCREEN_SIDE_PADDING, 820, 'v0.1.20 RC', { fontFamily: 'Arial', fontSize: '11px', color: '#64748b' }).setDepth(52).setVisible(false);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (!this.playing || this.paused) return;
       const lane = Math.max(0, Math.min(2, Math.floor(p.worldX / 130)));
@@ -113,7 +115,10 @@ export class ColorLane extends Phaser.Scene {
     const variant = this.buttonVariant(clean);
     const iconKey = this.buttonIcon(clean);
     const noLabel = ['PLAY', 'RESUME', 'BACK'].some(x => clean === x);
-    const b = hyperButton(this, 195, y, { variant, iconKey, width: Math.min(Math.max(w, 145), 235), label: noLabel ? undefined : clean, noLabel, onClick: cb });
+    const maxWidth = clean === 'PLAY' ? MAIN_BUTTON : MENU_BUTTON;
+    const minWidth = clean === 'PLAY' ? 172 : 132;
+    const scaled = Math.round(w * (clean === 'PLAY' ? UI.BUTTON_SCALE_MAIN : UI.BUTTON_SCALE_SECONDARY));
+    const b = hyperButton(this, 195, y, { variant, iconKey, width: Math.min(Math.max(scaled, minWidth), maxWidth), label: noLabel ? undefined : clean, noLabel, onClick: cb });
     this.menu.push(b);
   }
   buttonVariant(clean: string): UIButtonVariant {
@@ -140,6 +145,7 @@ export class ColorLane extends Phaser.Scene {
     return undefined;
   }
   shell(on = true) { this.overlay.setVisible(on); this.shellPanel.setVisible(on); this.title.setVisible(on); this.hint.setVisible(on); }
+  menuPanel() { this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(MENU_PANEL.width, MENU_PANEL.height).setPosition(MENU_PANEL.x, MENU_PANEL.y); }
   field(y: number, placeholder: string, type = 'text') {
     const el = document.createElement('input'); el.type = type; el.placeholder = placeholder; el.autocomplete = type === 'password' ? 'current-password' : type === 'email' ? 'email' : 'nickname';
     Object.assign(el.style, { position: 'fixed', left: '50%', top: `calc(50% + ${y - 422}px)`, transform: 'translate(-50%,-50%)', width: '260px', height: '44px', boxSizing: 'border-box', padding: '0 14px', border: '2px solid #475569', borderRadius: '5px', background: '#0f172a', color: '#fff', fontSize: '16px', zIndex: '9999', outline: 'none' });
@@ -153,23 +159,23 @@ export class ColorLane extends Phaser.Scene {
     this.playing = false; this.paused = false; this.danger.setAlpha(0); this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false);
     this.lives.setText(''); this.level.setText(''); this.streak.setText(''); this.score.setText(''); this.fuelLabel.setText(''); this.fuelFill.setVisible(false); this.fuelBar.setVisible(false); this.restoreHud.setText(''); this.restoreBoost.setVisible(false); this.worldHud.setText(''); this.lifePips.forEach(p => p.setVisible(false)); this.debugResources.setVisible(false); this.shell(true);
     this.shellPanel.setVisible(false);
-    const titleCard = hyperPanel(this, 195, 150, UI_ASSETS.panels.card.key, 270, 50);
-    const worldCard = hyperPanel(this, 195, 245, UI_ASSETS.panels.card.key, 292, 50);
-    const coin = hyperIcon(this, 288, 222, UI_ASSETS.icons.coin.key, 22, 52);
-    this.menu.push(titleCard, worldCard, coin);
-    this.title.setPosition(195, 150).setFontSize(36).setText('COLOR LANE');
-    this.hint.setPosition(195, 235).setFontSize(14).setText('WORLD RESTORATION\n' + Core.data.worldRestorationPercent.toFixed(1) + '%\nBEST ' + Core.data.highScore + '   ' + Core.data.coins + ' COINS');
+    const logo = this.add.image(195, 116, UI_ASSETS.titles.restorationWorld.key).setDisplaySize(330, 98).setDepth(52);
+    const coin = hyperIcon(this, 288, 198, UI_ASSETS.icons.coin.key, 20, 52);
+    this.menu.push(logo, coin);
+    this.title.setVisible(false);
+    this.hint.setPosition(195, 205).setFontSize(13).setText('BEST ' + Core.data.highScore + '   COINS ' + Core.data.coins + '\nWORLD ' + Core.data.worldRestorationPercent.toFixed(1) + '%\n' + (Online.user ? Online.name() : 'GUEST'));
     this.version.setVisible(true);
-    this.btn(335, 'PLAY', () => Core.data.tutorialSeen ? this.start() : this.tutorial(0), 210);
-    this.btn(405, 'LEADERBOARD', () => this.board(), 178);
-    this.btn(465, Online.user ? 'ACCOUNT' : 'SIGN IN', () => this.account(), 178);
-    this.btn(525, 'SHOP', () => this.shop(), 178);
-    this.btn(585, 'SETTINGS', () => this.settings(), 178);
+    const playY = 310;
+    this.btn(playY, 'PLAY', () => Core.data.tutorialSeen ? this.start() : this.tutorial(0), 210);
+    this.btn(playY + 70, 'LEADERBOARD', () => this.board(), 178);
+    this.btn(playY + 132, Online.user ? 'ACCOUNT' : 'SIGN IN', () => this.account(), 178);
+    this.btn(playY + 194, 'SHOP', () => this.shop(), 178);
+    this.btn(playY + 256, 'SETTINGS', () => this.settings(), 178);
   }
 
   tutorial(step = 0) {
     this.onboarding?.cancel();
-    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418);
+    this.menuPanel();
     this.playing = false; this.paused = false; this.clear(); this.gates.clear(true, true); this.player.setVisible(false); this.plane.setVisible(false); this.pause.setText(''); this.pauseBg.setVisible(false); this.shell(true);
     const pages = [
       ['HOW TO PLAY', 'MATCH THE COLOR\n\nA colored box falls down one of three lanes.\nMove your block into the SAME COLOR lane before it reaches the bottom.'],
@@ -180,53 +186,53 @@ export class ColorLane extends Phaser.Scene {
       ['READY?', 'MATCH. STREAK. SURVIVE.\n\nRead the falling box, move to its lane, and keep the run alive as the game gets faster.']
     ];
     const page = pages[Math.max(0, Math.min(step, pages.length - 1))];
-    this.title.setPosition(195, 210).setFontSize(step === 0 ? 40 : 36).setText(page[0]); this.hint.setPosition(195, 345).setFontSize(16).setText(page[1]);
-    if (step > 0) this.btn(605, 'BACK', () => this.tutorial(step - 1), 155);
-    if (step < pages.length - 1) this.btn(605, 'NEXT', () => this.tutorial(step + 1), 155);
-    else this.btn(605, 'PLAY', () => { Core.markTutorial(); this.start(); }, 180);
-    this.btn(665, 'HOME', () => this.home(), 170);
+    this.title.setPosition(195, 190).setFontSize(step === 0 ? 38 : 34).setText(page[0]); this.hint.setPosition(195, 340).setFontSize(15).setText(page[1]);
+    if (step > 0) this.btn(600, 'BACK', () => this.tutorial(step - 1), 155);
+    if (step < pages.length - 1) this.btn(600, 'NEXT', () => this.tutorial(step + 1), 155);
+    else this.btn(600, 'PLAY', () => { Core.markTutorial(); this.start(); }, 180);
+    this.btn(662, 'HOME', () => this.home(), 170);
   }
 
   account() {
-    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 220).setFontSize(42).setText('ACCOUNT');
-    if (Online.user) { this.hint.setPosition(195, 345).setFontSize(16).setText(Online.name() + '\n' + Online.user.email + '\n\nYour best runs are submitted globally.'); this.btn(485, 'VIEW RANK', () => this.board(), 190); this.btn(545, 'SIGN OUT', async () => { await Online.signOut(); this.home(); }, 190); this.btn(605, 'HOME', () => this.home(), 170); return; }
-    this.hint.setPosition(195, 340).setFontSize(16).setText('Sign in to join global rankings.\nGuest play remains available.'); this.btn(465, 'SIGN IN', () => this.authForm(false), 190); this.btn(525, 'CREATE ACCOUNT', () => this.authForm(true), 210); this.btn(585, 'HOME', () => this.home(), 170);
+    this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 178).setFontSize(38).setText('ACCOUNT');
+    if (Online.user) { this.hint.setPosition(195, 310).setFontSize(15).setText(Online.name() + '\n' + Online.user.email + '\n\nYour best runs are submitted globally.'); this.btn(460, 'VIEW RANK', () => this.board(), 190); this.btn(525, 'SIGN OUT', async () => { await Online.signOut(); this.home(); }, 190); this.btn(590, 'HOME', () => this.home(), 170); return; }
+    this.hint.setPosition(195, 300).setFontSize(15).setText('Sign in to join global rankings.\nGuest play remains available.'); this.btn(445, 'SIGN IN', () => this.authForm(false), 190); this.btn(510, 'CREATE ACCOUNT', () => this.authForm(true), 210); this.btn(575, 'HOME', () => this.home(), 170);
   }
 
   authForm(create: boolean, message = '') {
-    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 205).setFontSize(create ? 36 : 42).setText(create ? 'CREATE ACCOUNT' : 'SIGN IN'); this.hint.setPosition(195, 320).setFontSize(15).setText(message || (create ? 'Choose a player name, email and password.' : 'Enter your GECO account details.'));
-    const name = create ? this.field(405, 'Player name (1-18 characters)') : null, email = this.field(create ? 465 : 425, 'Email address', 'email'), password = this.field(create ? 525 : 490, 'Password (minimum 6 characters)', 'password');
-    this.btn(create ? 595 : 560, create ? 'CREATE ACCOUNT' : 'SIGN IN', async () => {
+    this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 178).setFontSize(create ? 32 : 38).setText(create ? 'CREATE ACCOUNT' : 'SIGN IN'); this.hint.setPosition(195, 282).setFontSize(14).setText(message || (create ? 'Choose a player name, email and password.' : 'Enter your account details.'));
+    const name = create ? this.field(375, 'Player name (1-18 characters)') : null, email = this.field(create ? 435 : 405, 'Email address', 'email'), password = this.field(create ? 495 : 470, 'Password (minimum 6 characters)', 'password');
+    this.btn(create ? 575 : 545, create ? 'CREATE ACCOUNT' : 'SIGN IN', async () => {
       const n = name?.value.trim() || '', e = email.value.trim(), p = password.value; this.blur();
       if (!e || p.length < 6 || (create && !n)) { this.hint.setText('CHECK YOUR DETAILS\nUse a valid email and password of at least 6 characters.'); return; }
       this.hint.setText(create ? 'CREATING ACCOUNT...' : 'SIGNING IN...');
       try {
-        if (create) { const r = await Online.signUp(e, p, n); this.clear(); this.shell(true); this.title.setPosition(195, 220).setFontSize(38).setText(r.needsConfirmation ? 'CHECK YOUR EMAIL' : 'WELCOME!'); this.hint.setPosition(195, 350).setFontSize(15).setText(r.needsConfirmation ? 'We sent a confirmation link to\n' + e + '\n\nConfirm it, then return and sign in.' : 'Signed in as ' + Online.name()); this.btn(590, r.needsConfirmation ? 'BACK TO SIGN IN' : 'HOME', () => r.needsConfirmation ? this.authForm(false) : this.home()); }
-        else { await Online.signIn(e, p); this.clear(); this.shell(true); this.title.setPosition(195, 220).setFontSize(42).setText('SIGNED IN'); this.hint.setPosition(195, 345).setFontSize(16).setText('WELCOME, ' + Online.name()); this.btn(590, 'CONTINUE', () => this.home()); }
+        if (create) { const r = await Online.signUp(e, p, n); this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 190).setFontSize(36).setText(r.needsConfirmation ? 'CHECK YOUR EMAIL' : 'WELCOME!'); this.hint.setPosition(195, 330).setFontSize(15).setText(r.needsConfirmation ? 'We sent a confirmation link to\n' + e + '\n\nConfirm it, then return and sign in.' : 'Signed in as ' + Online.name()); this.btn(570, r.needsConfirmation ? 'BACK TO SIGN IN' : 'HOME', () => r.needsConfirmation ? this.authForm(false) : this.home()); }
+        else { await Online.signIn(e, p); this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 190).setFontSize(38).setText('SIGNED IN'); this.hint.setPosition(195, 325).setFontSize(16).setText('WELCOME, ' + Online.name()); this.btn(570, 'CONTINUE', () => this.home()); }
       } catch (err: any) { const msg = String(err?.message || 'AUTHENTICATION FAILED').replace(/^AuthApiError:\s*/, '').slice(0, 100); this.hint.setText('ACCOUNT ERROR\n\n' + msg + '\n\nCorrect the details above and try again.'); }
     });
     this.btn(create ? 655 : 625, '← BACK', () => { this.blur(); this.account(); });
   }
 
   async board() {
-    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 215).setFontSize(38).setText('GLOBAL TOP 10'); this.hint.setPosition(195, 350).setFontSize(15).setText('LOADING...');
+    this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 178).setFontSize(36).setText('GLOBAL TOP 10'); this.hint.setPosition(195, 342).setFontSize(14).setText('LOADING...');
     try { const rows = await Online.top(10), rank = await Online.rank(); let text = rows.length ? rows.map((r, i) => (i + 1) + '. ' + r.display_name + '   ' + r.best_score).join('\n') : 'NO SCORES YET'; text += rank ? '\n\nYOUR RANK  #' + rank.rank + '   •   BEST ' + rank.score : Online.user ? '\n\nFINISH A RUN TO GET RANKED' : '\n\nSIGN IN TO JOIN THE RANKINGS'; this.hint.setText(text); }
     catch (e: any) { this.hint.setText('LEADERBOARD UNAVAILABLE\n' + String(e?.message || '').slice(0, 50)); }
-    this.btn(675, 'HOME', () => this.home(), 170);
+    this.btn(662, 'HOME', () => this.home(), 170);
   }
 
   shop() {
-    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 210).setFontSize(40).setText('STYLE SHOP'); this.hint.setPosition(195, 315).setFontSize(15).setText('BALANCE ' + Core.data.coins + ' COINS');
-    (['classic', 'sunset', 'neon'] as SkinId[]).forEach((s, i) => { const o = Core.data.unlocked.includes(s), sel = Core.data.skin === s; this.btn(410 + i * 58, (sel ? 'SELECTED ' : o ? 'EQUIP ' : 'UNLOCK ') + s.toUpperCase() + (o ? '' : ' ' + Core.price(s)), () => { Core.buy(s) ? this.shop() : this.flash('NEED MORE COINS', 500); }, 220); });
-    this.btn(620, 'HOME', () => this.home(), 170);
+    this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 178).setFontSize(38).setText('STYLE SHOP'); this.hint.setPosition(195, 285).setFontSize(15).setText('BALANCE ' + Core.data.coins + ' COINS');
+    (['classic', 'sunset', 'neon'] as SkinId[]).forEach((s, i) => { const o = Core.data.unlocked.includes(s), sel = Core.data.skin === s; this.btn(395 + i * 68, (sel ? 'SELECTED ' : o ? 'EQUIP ' : 'UNLOCK ') + s.toUpperCase() + (o ? '' : ' ' + Core.price(s)), () => { Core.buy(s) ? this.shop() : this.flash('NEED MORE COINS', 500); }, 220); });
+    this.btn(625, 'HOME', () => this.home(), 170);
   }
 
   settings() {
-    this.clear(); this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418); this.shell(true); this.title.setPosition(195, 210).setFontSize(40).setText('SETTINGS'); this.hint.setPosition(195, 315).setFontSize(15).setText('Preferences save automatically');
-    this.btn(410, 'SOUND ' + (Core.data.sound ? 'ON' : 'OFF'), () => { Core.toggleSound(); Audio.syncMusicVolume(); this.settings(); }, 215);
-    this.btn(470, 'VIBRATION ' + (Core.data.vibration ? 'ON' : 'OFF'), () => { Core.toggleVibration(); this.settings(); }, 215);
-    this.btn(530, 'HOW TO PLAY', () => this.tutorial(0), 215);
-    this.btn(590, 'HOME', () => this.home(), 170);
+    this.clear(); this.menuPanel(); this.shell(true); this.title.setPosition(195, 178).setFontSize(38).setText('SETTINGS'); this.hint.setPosition(195, 285).setFontSize(15).setText('Preferences save automatically');
+    this.btn(395, 'SOUND ' + (Core.data.sound ? 'ON' : 'OFF'), () => { Core.toggleSound(); Audio.syncMusicVolume(); this.settings(); }, 215);
+    this.btn(463, 'VIBRATION ' + (Core.data.vibration ? 'ON' : 'OFF'), () => { Core.toggleVibration(); this.settings(); }, 215);
+    this.btn(531, 'HOW TO PLAY', () => this.tutorial(0), 215);
+    this.btn(599, 'HOME', () => this.home(), 170);
   }
 
   skin() { const s = Core.data.skin; this.player.setScale(1).setAngle(0); if (s === 'sunset') { this.player.setStrokeStyle(8, 0xf97316, 1); this.player.setAngle(45).setScale(.86); } else if (s === 'neon') { this.player.setStrokeStyle(8, 0x22d3ee, 1); this.tweens.add({ targets: this.player, alpha: .62, yoyo: true, repeat: -1, duration: 420 }); } else this.player.setStrokeStyle(4, 0xffffff, .95); }
@@ -292,17 +298,17 @@ export class ColorLane extends Phaser.Scene {
     const s = this.run.snapshot();
     const fuel = Math.round(this.displayedFuel);
     const fuelColor = fuel < 10 ? 0xf43f5e : fuel < 25 ? 0xf97316 : fuel < 50 ? 0xfacc15 : 0x22c55e;
-    this.lives.setText('');
-    this.lifePips.forEach((pip, i) => pip.setVisible(true).setTint(i < s.lives ? 0x38bdf8 : 0x334155).setAlpha(i < s.lives ? .95 : .45));
+    this.lives.setText('LIVES').setVisible(true);
+    this.lifePips.forEach((pip, i) => pip.setVisible(true).setTint(i < s.lives ? 0xff5f87 : 0x334155).setAlpha(i < s.lives ? .95 : .42));
     this.level.setText('LEVEL ' + s.level);
     this.streak.setText(s.streak >= 4 ? 'ON FIRE' : s.streak >= 2 ? 'FLOW' : '');
     this.score.setText(String(s.score));
-    this.fuelLabel.setText(fuel + '%');
-    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 76 * fuel / 100;
+    this.fuelLabel.setText('FUEL ' + fuel + '%').setVisible(true);
+    this.fuelFill.setVisible(true).setFillStyle(fuelColor, .95).width = 66 * fuel / 100;
     this.fuelBar.setVisible(true);
-    this.restoreHud.setText('RESTORE ×' + this.restorePower.multiplier().toFixed(1));
-    this.restoreBoost.setVisible(true).width = 70 * this.restorePower.boostRatio();
-    this.worldHud.setText('WORLD ' + this.restoreProgress.displayTotal.toFixed(1) + '%');
+    this.restoreHud.setText('RESTORE x' + this.restorePower.multiplier().toFixed(1)).setVisible(true);
+    this.restoreBoost.setVisible(true).width = 58 * this.restorePower.boostRatio();
+    this.worldHud.setText('WORLD ' + this.restoreProgress.displayTotal.toFixed(1) + '%').setVisible(true);
   }
   schedule() { if (!this.playing) return; this.time.delayedCall(this.spawnDelay, () => { if (this.playing && !this.paused) this.spawn(); this.schedule(); }); }
   choose() { return this.spawnDirector.next(this.run.level, this.run.score).lane; }

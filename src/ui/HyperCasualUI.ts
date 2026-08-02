@@ -1,6 +1,21 @@
 import Phaser from 'phaser';
 import { UI_ASSETS, UIButtonVariant } from './HyperCasualUIAssets';
 
+export const DEBUG_UI_LAYOUT = false;
+
+export const MOBILE_UI_LAYOUT = {
+  SAFE_TOP_MARGIN: 24,
+  SAFE_BOTTOM_MARGIN: 34,
+  SCREEN_SIDE_PADDING: 18,
+  PANEL_INNER_PADDING: 34,
+  BUTTON_VERTICAL_GAP: 18,
+  SECTION_VERTICAL_GAP: 28,
+  BUTTON_SCALE_MAIN: 0.88,
+  BUTTON_SCALE_SECONDARY: 0.78,
+  HUD_ROW_GAP: 17,
+  HUD_INNER_PADDING: 14
+};
+
 type ButtonOptions = {
   variant?: UIButtonVariant;
   iconKey?: string;
@@ -52,7 +67,14 @@ export function hyperButton(scene: Phaser.Scene, x: number, y: number, options: 
   c.label = label;
   c.icon = icon;
   c.setDepth(options.depth ?? 52).setSize(bg.displayWidth, bg.displayHeight);
-  c.setInteractive(new Phaser.Geom.Rectangle(-bg.displayWidth / 2, -bg.displayHeight / 2, bg.displayWidth, bg.displayHeight), Phaser.Geom.Rectangle.Contains);
+  const hitWidth = Math.max(bg.displayWidth, 52);
+  const hitHeight = Math.max(bg.displayHeight, 46);
+  c.setInteractive(new Phaser.Geom.Rectangle(-hitWidth / 2, -hitHeight / 2, hitWidth, hitHeight), Phaser.Geom.Rectangle.Contains);
+  if (DEBUG_UI_LAYOUT) {
+    const bounds = scene.add.rectangle(0, 0, hitWidth, hitHeight, 0x00ffcc, .08)
+      .setStrokeStyle(1, 0x00ffcc, .7);
+    c.addAt(bounds, 0);
+  }
   if (!options.disabled) {
     c.on('pointerdown', (p: Phaser.Input.Pointer) => {
       p.event.stopPropagation();

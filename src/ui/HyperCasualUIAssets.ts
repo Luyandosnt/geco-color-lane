@@ -49,6 +49,9 @@ export const UI_ASSETS = {
     tallCard: { key: 'ui-panel-tall-card', path: '/assets/Sprites/Panel_Sprites/Rectangle 356.png' },
     gameOver: { key: 'ui-panel-game-over', path: '/assets/Sprites/Panel_Sprites/Game Over (1).png' }
   },
+  titles: {
+    restorationWorld: { key: 'ui-title-restoration-world', path: '/assets/ui/restoration-world-title.png' }
+  },
   toggle: {
     on: { key: 'ui-toggle-on', path: '/assets/Sprites/Toggle/Toggle_ON.png' },
     off: { key: 'ui-toggle-off', path: '/assets/Sprites/Toggle/Toggle_Off.png' }

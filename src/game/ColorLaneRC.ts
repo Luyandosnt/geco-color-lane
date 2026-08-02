@@ -24,8 +24,10 @@ export class ColorLaneRC extends ColorLane {
     this.player.setVisible(false);
     this.pause.setText('');
     this.pauseBg.setVisible(false);
+    this.menuPanel();
     this.shell(true);
-    this.title.setFontSize(38).setText('HOW TO PLAY');
+    this.title.setPosition(195, 178).setFontSize(36).setText('HOW TO PLAY');
+    this.hint.setPosition(195, 342).setFontSize(14);
     this.hint.setText(
       'MATCH THE FALLING BOX\n\n'+
       'Tap one of the three lanes to move your aircraft there.\n\n'+
@@ -50,13 +52,13 @@ export class ColorLaneRC extends ColorLane {
       this.paused=true;
       this.overlay.setVisible(true).setAlpha(.9);
       this.shell(true);
-      this.shellPanel.setTexture(UI_ASSETS.panels.pause.key).setDisplaySize(318, 340).setPosition(195, 420);
-      this.title.setPosition(195, 275).setFontSize(44).setText('PAUSED');
-      this.hint.setPosition(195, 365).setFontSize(16).setText('Your run is safe.\nResume when you are ready.');
+      this.shellPanel.setTexture(UI_ASSETS.panels.pause.key).setDisplaySize(310, 360).setPosition(195, 422);
+      this.title.setPosition(195, 250).setFontSize(42).setText('PAUSED');
+      this.hint.setPosition(195, 352).setFontSize(15).setText('Your run is safe.\nResume when you are ready.');
       this.pause.setText('');
       this.pauseBg.setVisible(false);
       this.btn(485,'RESUME',()=>this.resumeRun(),190);
-      this.btn(545,'HOME',()=>this.quitToHome(),170);
+      this.btn(552,'HOME',()=>this.quitToHome(),170);
     }else this.resumeRun();
   }
 
@@ -66,7 +68,7 @@ export class ColorLaneRC extends ColorLane {
     this.onboarding.resume();
     Audio.resumeMusic();
     this.shell(false);
-    this.shellPanel.setTexture(UI_ASSETS.panels.menu.key).setDisplaySize(344, 277).setPosition(195, 418);
+    this.menuPanel();
     this.overlay.setVisible(false);
     this.pause.setText('Ⅱ PAUSE');
     this.pauseBg.setVisible(true);

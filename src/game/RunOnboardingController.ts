@@ -29,7 +29,7 @@ export class RunOnboardingController {
   private timers: Phaser.Time.TimerEvent[] = [];
   private paused = false;
   private fuelSpeed = 260;
-  private stopY = PICKUP_Y - 36;
+  private stopY = AIRCRAFT_Y - 104;
 
   constructor(scene: Phaser.Scene, config: RunOnboardingConfig) {
     this.scene = scene;
@@ -163,10 +163,10 @@ export class RunOnboardingController {
   private setTarget(lane: number, text: string, centerHighlight = false) {
     this.currentTarget = lane;
     const x = this.config.lanes[lane];
-    this.label.setText(text).setPosition(x, centerHighlight ? AIRCRAFT_Y - 126 : 690).setAlpha(1).setVisible(true);
-    this.hand.setPosition(x, 738).setAlpha(1).setScale(1).setVisible(true);
-    this.ring.setPosition(x, 748).setAlpha(.72).setScale(.65).setVisible(true);
-    this.lanePulse.setPosition(x, centerHighlight ? AIRCRAFT_Y - 44 : 742)
+    this.label.setText(text).setPosition(x, centerHighlight ? this.stopY - 86 : 628).setAlpha(1).setVisible(true);
+    this.hand.setPosition(x, centerHighlight ? AIRCRAFT_Y + 72 : 690).setAlpha(1).setScale(1).setVisible(true);
+    this.ring.setPosition(x, centerHighlight ? AIRCRAFT_Y + 82 : 700).setAlpha(.72).setScale(.65).setVisible(true);
+    this.lanePulse.setPosition(x, centerHighlight ? this.stopY : 692)
       .setFillStyle(centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .045 : 0)
       .setStrokeStyle(3, centerHighlight ? 0x38bdf8 : 0xffffff, centerHighlight ? .42 : 0)
       .setVisible(true);
